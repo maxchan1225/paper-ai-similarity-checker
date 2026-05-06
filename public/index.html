@@ -3,24 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>論文查重與 AI 比率初篩</title>
-  <meta name="description" content="上傳或貼上論文文字，估算查重率與 AI 寫作可能性。">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+  <title>論文原創性與 AI 檢測報告</title>
+  <meta name="description" content="上傳論文與比對資料庫，產生類 Turnitin / iThenticate 的相似度與 AI 寫作初篩報告。">
   <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <style>
     :root {
       color-scheme: light;
-      --ink: #18212f;
+      --ink: #17202e;
       --muted: #667085;
       --line: #d8dee8;
-      --paper: #f6f7f9;
+      --paper: #f5f6f8;
       --panel: #ffffff;
-      --accent: #116d6e;
-      --accent-2: #8b5a2b;
+      --accent: #12615f;
+      --accent-soft: #e6f3f1;
+      --gold: #966f2f;
       --danger: #b42318;
       --warn: #b54708;
       --ok: #067647;
-      --shadow: 0 18px 50px rgba(18, 27, 42, .12);
+      --dark: #17202e;
+      --shadow: 0 18px 48px rgba(19, 30, 44, .12);
     }
 
     * { box-sizing: border-box; }
@@ -32,98 +33,100 @@
       background: var(--paper);
     }
 
-    button, input, textarea { font: inherit; }
+    button, input, textarea, select { font: inherit; }
 
-    .app-shell {
+    .app {
       min-height: 100vh;
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
+      grid-template-columns: 330px minmax(0, 1fr);
     }
 
     aside {
-      background: #18212f;
+      background: var(--dark);
       color: #f8fafc;
       padding: 28px 22px;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 22px;
     }
 
     .brand h1 {
       margin: 0;
-      font-size: 28px;
-      line-height: 1.18;
+      font-size: 27px;
+      line-height: 1.2;
       letter-spacing: 0;
     }
 
-    .brand p {
-      margin: 12px 0 0;
+    .brand p, .notice {
       color: #cbd5e1;
-      line-height: 1.65;
+      line-height: 1.62;
       font-size: 14px;
     }
 
+    .brand p { margin: 12px 0 0; }
+
     .notice {
-      border: 1px solid rgba(255,255,255,.18);
-      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      background: rgba(255, 255, 255, .06);
       border-radius: 8px;
-      background: rgba(255,255,255,.06);
-      color: #e2e8f0;
-      font-size: 13px;
-      line-height: 1.55;
+      padding: 14px;
     }
 
-    .metric-list {
+    .side-metrics {
+      margin-top: auto;
       display: grid;
       gap: 12px;
-      margin-top: auto;
     }
 
-    .mini-metric {
-      border-top: 1px solid rgba(255,255,255,.12);
+    .side-metric {
+      border-top: 1px solid rgba(255, 255, 255, .14);
       padding-top: 12px;
     }
 
-    .mini-metric strong {
+    .side-metric strong {
       display: block;
-      font-size: 23px;
+      font-size: 24px;
+      line-height: 1.1;
     }
 
-    .mini-metric span {
+    .side-metric span {
+      display: block;
       color: #cbd5e1;
       font-size: 13px;
+      margin-top: 3px;
     }
 
     main {
       padding: 26px;
       display: grid;
-      gap: 22px;
+      gap: 20px;
       align-content: start;
     }
 
-    .toolbar {
+    .topbar {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 14px;
+      gap: 16px;
+      align-items: flex-start;
       flex-wrap: wrap;
     }
 
-    .toolbar h2 {
+    .topbar h2 {
       margin: 0;
-      font-size: 22px;
+      font-size: 23px;
+      letter-spacing: 0;
     }
 
-    .toolbar p {
-      margin: 6px 0 0;
+    .topbar p {
+      margin: 7px 0 0;
+      max-width: 860px;
       color: var(--muted);
-      line-height: 1.5;
-      max-width: 760px;
+      line-height: 1.55;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: minmax(320px, 1.05fr) minmax(320px, .95fr);
+      grid-template-columns: minmax(360px, .95fr) minmax(440px, 1.05fr);
       gap: 18px;
       align-items: start;
     }
@@ -148,8 +151,8 @@
     .panel-head p {
       margin: 8px 0 0;
       color: var(--muted);
-      font-size: 14px;
       line-height: 1.55;
+      font-size: 14px;
     }
 
     .panel-body {
@@ -158,44 +161,79 @@
       gap: 14px;
     }
 
+    .drop-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
     .drop-zone {
-      border: 1.5px dashed #9aa7b7;
+      border: 1.5px dashed #98a4b3;
       border-radius: 8px;
       min-height: 118px;
       display: grid;
       place-items: center;
       text-align: center;
-      padding: 18px;
+      padding: 16px;
       background: #fbfcfe;
       cursor: pointer;
+      color: var(--muted);
+    }
+
+    .drop-zone strong {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 4px;
     }
 
     .drop-zone.is-dragging {
       border-color: var(--accent);
-      background: #e7f5f4;
+      background: var(--accent-soft);
     }
-
-    .drop-zone strong { display: block; }
-    .drop-zone span { color: var(--muted); font-size: 13px; }
 
     textarea {
       width: 100%;
-      min-height: 238px;
+      min-height: 220px;
       resize: vertical;
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 12px;
-      line-height: 1.58;
+      line-height: 1.6;
       color: var(--ink);
       background: #fff;
     }
 
-    .reference-box textarea { min-height: 120px; }
+    .sources {
+      display: grid;
+      gap: 8px;
+      max-height: 168px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .source-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 4px;
+      background: #fbfcfe;
+    }
+
+    .source-item strong {
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .source-item span {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     .actions {
       display: flex;
-      gap: 10px;
       flex-wrap: wrap;
+      gap: 10px;
     }
 
     .btn {
@@ -206,9 +244,6 @@
       background: var(--accent);
       color: white;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
       font-weight: 700;
     }
 
@@ -219,82 +254,60 @@
     }
 
     .btn:disabled {
-      opacity: .5;
       cursor: not-allowed;
+      opacity: .55;
     }
 
     .score-row {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
 
     .score {
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 16px;
-      min-height: 150px;
+      background: #fbfcfe;
+      padding: 15px;
+      min-height: 142px;
       display: grid;
       align-content: space-between;
-      gap: 12px;
-      background: #fbfcfe;
+      gap: 10px;
     }
 
     .score label {
       color: var(--muted);
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .score strong {
-      font-size: clamp(40px, 6vw, 64px);
+      font-size: clamp(36px, 5vw, 58px);
       line-height: .95;
       letter-spacing: 0;
     }
 
     .bar {
       height: 10px;
-      background: #e4e7ec;
       border-radius: 999px;
+      background: #e4e7ec;
       overflow: hidden;
     }
 
     .bar span {
       display: block;
-      height: 100%;
       width: 0%;
-      background: var(--accent);
+      height: 100%;
+      background: var(--ok);
       transition: width .35s ease;
     }
 
     .bar.warn span { background: var(--warn); }
     .bar.danger span { background: var(--danger); }
-    .bar.ok span { background: var(--ok); }
-
-    .breakdown {
-      display: grid;
-      gap: 10px;
-    }
-
-    .factor {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .factor-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 14px;
-    }
 
     .chips {
       display: flex;
-      gap: 8px;
       flex-wrap: wrap;
+      gap: 8px;
     }
 
     .chip {
@@ -305,17 +318,79 @@
       font-size: 13px;
     }
 
-    .findings {
-      display: grid;
-      gap: 10px;
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
     }
 
-    .finding {
-      border-left: 4px solid var(--accent-2);
-      background: #fff8ed;
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+
+    .tab-page { display: none; }
+    .tab-page.active { display: grid; gap: 12px; }
+
+    .table {
+      display: grid;
+      gap: 8px;
+    }
+
+    .row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
       padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .row-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .row-top strong { overflow-wrap: anywhere; }
+    .row-top span { color: var(--muted); white-space: nowrap; }
+
+    .snippet {
+      border-left: 4px solid var(--gold);
+      background: #fff8ed;
       border-radius: 0 8px 8px 0;
-      line-height: 1.5;
+      padding: 10px 12px;
+      line-height: 1.58;
+      color: #3b2b15;
+    }
+
+    .factor {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .factor-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
     }
 
     .empty {
@@ -330,7 +405,7 @@
     .report {
       white-space: pre-wrap;
       line-height: 1.65;
-      max-height: 280px;
+      max-height: 340px;
       overflow: auto;
       padding: 14px;
       background: #0f172a;
@@ -340,94 +415,135 @@
       font-size: 13px;
     }
 
-    @media (max-width: 980px) {
-      .app-shell { grid-template-columns: 1fr; }
+    @media (max-width: 1120px) {
+      .app { grid-template-columns: 1fr; }
       aside { min-height: auto; }
-      .metric-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .side-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .grid { grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 620px) {
+    @media (max-width: 720px) {
       main { padding: 18px; }
-      .score-row, .metric-list { grid-template-columns: 1fr; }
       aside { padding: 22px 18px; }
-      .toolbar h2 { font-size: 20px; }
+      .drop-grid, .score-row, .side-metrics { grid-template-columns: 1fr; }
+      .topbar h2 { font-size: 20px; }
     }
   </style>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app">
     <aside>
       <div class="brand">
-        <h1>論文查重與 AI 比率初篩</h1>
-        <p>上傳論文後，系統會以文字特徵、重複片語、可選參考文本比對與寫作節奏估算風險。</p>
+        <h1>原創性與 AI 檢測報告</h1>
+        <p>把一篇主論文與多篇來源文件放在同一個本機比對庫中，產生更接近正式查重報告的相似度來源、段落命中與 AI 寫作風險。</p>
       </div>
       <div class="notice">
-        本工具是教學用初篩，不等同 Turnitin、iThenticate 或正式 AI 檢測報告。正式判定仍應搭配原文來源、引用規範與人工審閱。
+        這是「類 Turnitin / iThenticate」的本機初篩版：它不連接商業資料庫、期刊全文庫或專有 AI 模型，但會用文件指紋、段落比對、引用偵測與寫作節奏做可解釋報告。
       </div>
-      <div class="metric-list">
-        <div class="mini-metric"><strong id="wordCount">0</strong><span>字詞數</span></div>
-        <div class="mini-metric"><strong id="sentenceCount">0</strong><span>句子數</span></div>
-        <div class="mini-metric"><strong id="riskLabel">未分析</strong><span>整體風險</span></div>
+      <div class="side-metrics">
+        <div class="side-metric"><strong id="wordCount">0</strong><span>主文 token</span></div>
+        <div class="side-metric"><strong id="sourceCount">0</strong><span>比對來源</span></div>
+        <div class="side-metric"><strong id="matchedCount">0</strong><span>命中段落</span></div>
+        <div class="side-metric"><strong id="riskLabel">未分析</strong><span>整體風險</span></div>
       </div>
     </aside>
 
     <main>
-      <section class="toolbar">
+      <section class="topbar">
         <div>
-          <h2>上傳論文並產生檢測結果</h2>
-          <p>支援 TXT、PDF、DOCX。PDF 和 DOCX 會在瀏覽器內轉文字；若格式複雜，建議貼上純文字以提高判讀穩定性。</p>
+          <h2>上傳主論文與比對資料庫</h2>
+          <p>若你要測 5 篇論文，請把其中一篇設為「主論文」，其餘 4 篇放入「比對資料庫」。系統會顯示每個來源的相似度、命中段落和 AI 風險分項。</p>
         </div>
-        <button class="btn secondary" id="sampleBtn" type="button">載入範例</button>
+        <button class="btn secondary" id="sampleBtn" type="button">載入示範資料</button>
       </section>
 
       <section class="grid">
         <div class="panel">
           <div class="panel-head">
-            <h3>論文內容</h3>
-            <p>拖曳檔案到下方，或直接貼上要檢測的文字。</p>
+            <h3>檢測輸入</h3>
+            <p>支援 TXT、PDF、DOCX。所有檔案只在瀏覽器內讀取，不會上傳到伺服器。</p>
           </div>
           <div class="panel-body">
-            <label class="drop-zone" id="dropZone">
-              <input id="fileInput" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden>
-              <span><strong>選擇或拖曳檔案</strong>TXT、PDF、DOCX，檔案只在本機瀏覽器處理</span>
-            </label>
-            <textarea id="paperText" placeholder="在這裡貼上論文全文..."></textarea>
-            <div class="reference-box">
-              <textarea id="referenceText" placeholder="可選：貼上已知來源、學生互相比對文本或課堂資料，系統會納入局部查重估算。"></textarea>
+            <div class="drop-grid">
+              <label class="drop-zone" id="paperDrop">
+                <input id="paperFile" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden>
+                <span><strong>主論文</strong>選擇或拖曳 1 篇要檢測的論文</span>
+              </label>
+              <label class="drop-zone" id="sourceDrop">
+                <input id="sourceFiles" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple hidden>
+                <span><strong>比對資料庫</strong>一次選擇多篇來源、同學論文或教材</span>
+              </label>
             </div>
+
+            <textarea id="paperText" placeholder="也可以直接貼上主論文全文..."></textarea>
+            <textarea id="sourceText" placeholder="可選：貼上網頁、教材、已知來源或其他論文文字。每個來源請用三個減號分隔，例如：&#10;--- 來源 A ---&#10;文字...&#10;--- 來源 B ---&#10;文字..."></textarea>
+
+            <div class="sources" id="sourceList">
+              <div class="empty">尚未加入比對來源。若沒有來源庫，查重只能做內部重複與引用結構初篩。</div>
+            </div>
+
             <div class="actions">
-              <button class="btn" id="analyzeBtn" type="button">開始檢測</button>
+              <button class="btn" id="analyzeBtn" type="button">產生檢測報告</button>
               <button class="btn secondary" id="clearBtn" type="button">清除</button>
-              <button class="btn secondary" id="downloadBtn" type="button" disabled>下載報告</button>
+              <button class="btn secondary" id="downloadBtn" type="button" disabled>下載完整報告</button>
             </div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
-            <h3>檢測結果</h3>
-            <p>結果會顯示查重率估算、AI 比率估算與主要判斷依據。</p>
+            <h3>報告摘要</h3>
+            <p>相似度會以主文被來源庫命中的文字覆蓋率估算；AI 比率為寫作特徵初篩，不作為單獨定罪依據。</p>
           </div>
           <div class="panel-body">
             <div class="score-row">
               <div class="score">
-                <label>查重率估算</label>
+                <label>總相似度</label>
                 <strong id="similarityScore">--%</strong>
                 <div class="bar" id="similarityBar"><span></span></div>
               </div>
               <div class="score">
-                <label>AI 比率估算</label>
+                <label>最高單一來源</label>
+                <strong id="topSourceScore">--%</strong>
+                <div class="bar" id="topSourceBar"><span></span></div>
+              </div>
+              <div class="score">
+                <label>AI 寫作可能性</label>
                 <strong id="aiScore">--%</strong>
                 <div class="bar" id="aiBar"><span></span></div>
               </div>
             </div>
+
             <div class="chips" id="summaryChips"></div>
-            <div class="breakdown" id="breakdown"></div>
-            <div class="findings" id="findings">
-              <div class="empty">尚未檢測。請上傳論文或貼上文字後按「開始檢測」。</div>
+
+            <div class="tabs">
+              <button class="tab active" type="button" data-tab="sourcesTab">來源比對</button>
+              <button class="tab" type="button" data-tab="matchesTab">命中段落</button>
+              <button class="tab" type="button" data-tab="aiTab">AI 分析</button>
+              <button class="tab" type="button" data-tab="reportTab">完整報告</button>
             </div>
-            <div class="report" id="report" hidden></div>
+
+            <section class="tab-page active" id="sourcesTab">
+              <div id="sourceResults" class="table">
+                <div class="empty">尚未產生報告。</div>
+              </div>
+            </section>
+
+            <section class="tab-page" id="matchesTab">
+              <div id="matchResults" class="table">
+                <div class="empty">尚未產生報告。</div>
+              </div>
+            </section>
+
+            <section class="tab-page" id="aiTab">
+              <div id="aiResults" class="table">
+                <div class="empty">尚未產生報告。</div>
+              </div>
+            </section>
+
+            <section class="tab-page" id="reportTab">
+              <div class="report" id="report"></div>
+            </section>
           </div>
         </div>
       </section>
@@ -436,77 +552,114 @@
 
   <script type="module">
     const els = {
-      fileInput: document.getElementById('fileInput'),
-      dropZone: document.getElementById('dropZone'),
+      paperDrop: document.getElementById('paperDrop'),
+      sourceDrop: document.getElementById('sourceDrop'),
+      paperFile: document.getElementById('paperFile'),
+      sourceFiles: document.getElementById('sourceFiles'),
       paperText: document.getElementById('paperText'),
-      referenceText: document.getElementById('referenceText'),
+      sourceText: document.getElementById('sourceText'),
+      sourceList: document.getElementById('sourceList'),
       analyzeBtn: document.getElementById('analyzeBtn'),
       clearBtn: document.getElementById('clearBtn'),
       sampleBtn: document.getElementById('sampleBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       wordCount: document.getElementById('wordCount'),
-      sentenceCount: document.getElementById('sentenceCount'),
+      sourceCount: document.getElementById('sourceCount'),
+      matchedCount: document.getElementById('matchedCount'),
       riskLabel: document.getElementById('riskLabel'),
       similarityScore: document.getElementById('similarityScore'),
+      topSourceScore: document.getElementById('topSourceScore'),
       aiScore: document.getElementById('aiScore'),
       similarityBar: document.getElementById('similarityBar'),
+      topSourceBar: document.getElementById('topSourceBar'),
       aiBar: document.getElementById('aiBar'),
       summaryChips: document.getElementById('summaryChips'),
-      breakdown: document.getElementById('breakdown'),
-      findings: document.getElementById('findings'),
+      sourceResults: document.getElementById('sourceResults'),
+      matchResults: document.getElementById('matchResults'),
+      aiResults: document.getElementById('aiResults'),
       report: document.getElementById('report')
     };
 
-    let latestReport = '';
+    const state = {
+      sources: [],
+      latestReport: ''
+    };
 
-    const sample = `本研究旨在探討數位學習平台對高中學生自主學習動機的影響。近年來，教育現場逐漸導入線上課程、即時回饋與學習分析工具，教師能夠更快掌握學生的學習狀況。研究結果顯示，當平台提供清楚的目標、適時的回饋以及可視化進度時，學生較容易維持學習投入。然而，若平台僅以任務堆疊為主，缺乏互動與反思設計，學生可能出現被動完成作業的情況。
+    const samplePaper = `本研究探討生成式人工智慧工具在高中專題寫作中的影響。研究指出，當學生使用 AI 協助整理資料時，能夠更快形成研究問題與初步架構。然而，若缺乏明確的引用規範與學習歷程紀錄，學生可能直接採用機器生成的段落，導致文本原創性降低。
 
-綜上所述，數位學習平台並非單純依靠技術即可提升成效。教師仍需設計合適的問題情境，引導學生進行自我監控、同儕討論與階段性回顧。未來研究可進一步比較不同學科與不同年級在平台使用上的差異，以建立更具彈性的教學策略。`;
+在教學實務上，教師需要建立分階段提交機制，包括研究動機、文獻摘錄、資料分析、草稿修訂與最終反思。透過這些過程性證據，教師能更有效區分合理輔助與不當代寫。綜上所述，生成式人工智慧並不必然削弱學習成效，關鍵在於課程設計是否要求學生展示思考過程。`;
 
-    els.dropZone.addEventListener('click', () => els.fileInput.click());
-    els.dropZone.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      els.dropZone.classList.add('is-dragging');
+    const sampleSources = [
+      {
+        name: '來源 A - AI 與專題寫作教材',
+        text: `當學生使用 AI 協助整理資料時，能夠更快形成研究問題與初步架構。若缺乏明確的引用規範與學習歷程紀錄，學生可能直接採用機器生成的段落，進而降低文本原創性。`
+      },
+      {
+        name: '來源 B - 課程評量設計',
+        text: `教師需要建立分階段提交機制，包括研究動機、文獻摘錄、資料分析、草稿修訂與最終反思。過程性證據能幫助教師區分合理輔助與不當代寫。`
+      }
+    ];
+
+    setupDrop(els.paperDrop, els.paperFile, async files => {
+      const [file] = files;
+      if (!file) return;
+      els.paperDrop.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>讀取中...`;
+      els.paperText.value = await readFileText(file);
+      els.paperDrop.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>主論文已載入`;
+      updateSidebar();
     });
-    els.dropZone.addEventListener('dragleave', () => els.dropZone.classList.remove('is-dragging'));
-    els.dropZone.addEventListener('drop', async (event) => {
-      event.preventDefault();
-      els.dropZone.classList.remove('is-dragging');
-      const [file] = event.dataTransfer.files;
-      if (file) await loadFile(file);
+
+    setupDrop(els.sourceDrop, els.sourceFiles, async files => {
+      els.sourceDrop.querySelector('span').innerHTML = `<strong>${files.length} 個來源</strong>讀取中...`;
+      for (const file of files) {
+        state.sources.push({ name: file.name, text: await readFileText(file) });
+      }
+      els.sourceDrop.querySelector('span').innerHTML = `<strong>${files.length} 個來源</strong>已加入比對資料庫`;
+      renderSourceList();
+      updateSidebar();
     });
-    els.fileInput.addEventListener('change', async () => {
-      const [file] = els.fileInput.files;
-      if (file) await loadFile(file);
+
+    document.querySelectorAll('.tab').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab, .tab-page').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.tab).classList.add('active');
+      });
     });
+
+    els.paperText.addEventListener('input', updateSidebar);
+    els.sourceText.addEventListener('input', updateSidebar);
     els.analyzeBtn.addEventListener('click', analyze);
     els.clearBtn.addEventListener('click', clearAll);
+    els.downloadBtn.addEventListener('click', downloadReport);
     els.sampleBtn.addEventListener('click', () => {
-      els.paperText.value = sample;
-      els.referenceText.value = sample.slice(0, 190);
+      els.paperText.value = samplePaper;
+      state.sources = [...sampleSources];
+      renderSourceList();
       analyze();
     });
-    els.downloadBtn.addEventListener('click', downloadReport);
-    els.paperText.addEventListener('input', updateCounts);
 
-    async function loadFile(file) {
-      els.dropZone.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>正在讀取檔案內容...`;
-      try {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (ext === 'txt' || file.type === 'text/plain') {
-          els.paperText.value = await file.text();
-        } else if (ext === 'pdf' || file.type === 'application/pdf') {
-          els.paperText.value = await readPdf(file);
-        } else if (ext === 'docx' || file.type.includes('wordprocessingml')) {
-          els.paperText.value = await readDocx(file);
-        } else {
-          throw new Error('目前僅支援 TXT、PDF、DOCX。');
-        }
-        updateCounts();
-        els.dropZone.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>已載入，可開始檢測`;
-      } catch (error) {
-        els.dropZone.querySelector('span').innerHTML = `<strong>讀取失敗</strong>${escapeHtml(error.message)}`;
-      }
+    function setupDrop(zone, input, onFiles) {
+      zone.addEventListener('click', () => input.click());
+      zone.addEventListener('dragover', event => {
+        event.preventDefault();
+        zone.classList.add('is-dragging');
+      });
+      zone.addEventListener('dragleave', () => zone.classList.remove('is-dragging'));
+      zone.addEventListener('drop', async event => {
+        event.preventDefault();
+        zone.classList.remove('is-dragging');
+        await onFiles([...event.dataTransfer.files]);
+      });
+      input.addEventListener('change', async () => onFiles([...input.files]));
+    }
+
+    async function readFileText(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'txt' || file.type === 'text/plain') return file.text();
+      if (ext === 'pdf' || file.type === 'application/pdf') return readPdf(file);
+      if (ext === 'docx' || file.type.includes('wordprocessingml')) return readDocx(file);
+      throw new Error('目前僅支援 TXT、PDF、DOCX。');
     }
 
     async function readPdf(file) {
@@ -523,252 +676,467 @@
     }
 
     async function readDocx(file) {
-      if (!window.mammoth) throw new Error('DOCX 讀取元件載入失敗，請改貼純文字。');
+      if (!window.mammoth) throw new Error('DOCX 讀取元件載入失敗，請改用純文字。');
       const result = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
       return result.value;
     }
 
     function analyze() {
-      const text = normalizeText(els.paperText.value);
-      const reference = normalizeText(els.referenceText.value);
-      if (text.length < 80) {
-        renderEmpty('文字太短，請至少提供一段完整論文內容。');
+      const paper = makeDocument('主論文', els.paperText.value);
+      if (paper.tokens.length < 60) {
+        showMessage('請提供更完整的主論文內容，至少需要約 60 個 token 才能產生可靠報告。');
         return;
       }
 
-      const tokens = tokenize(text);
-      const sentences = splitSentences(text);
-      const ngrams = getNgrams(tokens, 6);
-      const repeated = repeatedPhrases(ngrams);
-      const internalReuse = clamp((repeated.totalRepeated / Math.max(ngrams.length, 1)) * 100 * 2.15, 0, 55);
-      const referenceOverlap = reference ? compareReference(tokens, tokenize(reference)) : 0;
-      const citationDensity = citationScore(text, tokens.length);
-      const longQuoteRisk = quoteRisk(text, tokens.length);
-      const similarity = Math.round(clamp(internalReuse + referenceOverlap + longQuoteRisk - citationDensity, 0, 100));
+      const pastedSources = parsePastedSources(els.sourceText.value);
+      const sources = [...state.sources, ...pastedSources]
+        .map(source => makeDocument(source.name, source.text))
+        .filter(source => source.tokens.length >= 20);
 
-      const aiFactors = aiWritingFactors(text, tokens, sentences);
-      const ai = Math.round(clamp(aiFactors.reduce((sum, item) => sum + item.score * item.weight, 0), 0, 100));
-      const overall = Math.round((similarity * .55) + (ai * .45));
-      const risk = labelRisk(overall);
+      const similarity = calculateSimilarity(paper, sources);
+      const internal = calculateInternalSimilarity(paper);
+      const citations = citationSignals(paper.text, paper.tokens.length);
+      const adjustedSimilarity = Math.round(clamp(
+        similarity.coverage + internal.score * .22 + citations.unquotedRisk - citations.credit,
+        0,
+        100
+      ));
+      const ai = calculateAi(paper);
+      const topSource = similarity.sources[0]?.score || 0;
+      const overall = Math.round(adjustedSimilarity * .62 + ai.total * .38);
+      const risk = riskLabel(overall);
 
-      latestReport = buildReport({
-        text, tokens, sentences, repeated, similarity, ai, overall, risk,
-        referenceUsed: Boolean(reference), aiFactors, internalReuse, referenceOverlap, citationDensity, longQuoteRisk
+      renderScores(adjustedSimilarity, topSource, ai.total, risk);
+      renderSourceResults(similarity.sources, sources.length);
+      renderMatches(similarity.matches, internal.repeats);
+      renderAi(ai);
+      updateSidebar(paper.tokens, sources.length, similarity.matches.length, risk);
+
+      state.latestReport = buildReport({
+        paper,
+        sourceTotal: sources.length,
+        similarity: adjustedSimilarity,
+        rawCoverage: similarity.coverage,
+        topSource,
+        internal,
+        citations,
+        ai,
+        risk,
+        sources: similarity.sources,
+        matches: similarity.matches
       });
-
-      renderScores(similarity, ai, risk);
-      renderBreakdown([
-        ['內部重複片語', internalReuse, '同一篇文章中出現多次的 6 詞片語比例'],
-        ['參考文本重疊', referenceOverlap, reference ? '與你貼上的來源文本局部比對' : '未提供參考文本，此項不計入'],
-        ['引用抵扣', Math.max(citationDensity, 0), '偵測括號引用、註腳或 DOI 後降低查重風險'],
-        ['長引文風險', longQuoteRisk, '過長引號段落或未整理摘錄會提高風險']
-      ], aiFactors);
-      renderFindings(repeated.items, aiFactors, similarity, ai);
-      updateCounts(tokens, sentences);
-      els.report.textContent = latestReport;
-      els.report.hidden = false;
+      els.report.textContent = state.latestReport;
       els.downloadBtn.disabled = false;
     }
 
-    function tokenize(text) {
-      const cjk = text.match(/[\u4e00-\u9fff]/g) || [];
-      const words = text.toLowerCase().match(/[a-z0-9]+(?:[-'][a-z0-9]+)?/g) || [];
-      return [...words, ...chunkCjk(cjk.join(''))].filter(Boolean);
+    function makeDocument(name, text) {
+      const clean = normalizeText(text);
+      return {
+        name,
+        text: clean,
+        tokens: tokenize(clean),
+        paragraphs: splitParagraphs(clean),
+        sentences: splitSentences(clean)
+      };
     }
 
-    function chunkCjk(str) {
-      const chunks = [];
-      for (let i = 0; i < str.length; i += 2) chunks.push(str.slice(i, i + 2));
-      return chunks;
-    }
+    function calculateSimilarity(paper, sources) {
+      if (!sources.length) return { coverage: 0, sources: [], matches: [] };
 
-    function splitSentences(text) {
-      return text.split(/[。！？!?；;\n]+/).map(item => item.trim()).filter(item => item.length > 8);
-    }
+      const paperShingles = shingleEntries(paper.tokens, 7);
+      const paperIndex = new Map(paperShingles.map(entry => [entry.key, entry]));
+      const covered = new Set();
+      const sourceRows = [];
+      const matches = [];
 
-    function getNgrams(tokens, size) {
-      const items = [];
-      for (let i = 0; i <= tokens.length - size; i += 1) {
-        items.push(tokens.slice(i, i + size).join(' '));
+      for (const source of sources) {
+        const sourceSet = new Set(shingleEntries(source.tokens, 7).map(entry => entry.key));
+        const hitPositions = [];
+        for (const entry of paperShingles) {
+          if (sourceSet.has(entry.key)) {
+            covered.add(entry.index);
+            hitPositions.push(entry.index);
+          }
+        }
+
+        const score = Math.round(clamp((hitPositions.length / Math.max(paperShingles.length, 1)) * 115, 0, 100));
+        const density = longestRun(hitPositions);
+        if (score > 0) {
+          sourceRows.push({
+            name: source.name,
+            score,
+            matchedShingles: hitPositions.length,
+            longestRun: density,
+            tokenCount: source.tokens.length
+          });
+        }
+
+        const paragraphHits = paper.paragraphs.map((paragraph, index) => {
+          const pTokens = tokenize(paragraph);
+          const pShingles = shingleEntries(pTokens, 7).map(entry => entry.key);
+          if (!pShingles.length) return null;
+          const hits = pShingles.filter(key => sourceSet.has(key)).length;
+          const paragraphScore = Math.round((hits / pShingles.length) * 100);
+          return paragraphScore >= 18 ? { index, paragraph, score: paragraphScore, source: source.name } : null;
+        }).filter(Boolean);
+
+        matches.push(...paragraphHits);
       }
-      return items;
+
+      const dedupedMatches = dedupeMatches(matches)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12);
+      const coverage = Math.round(clamp((covered.size / Math.max(paperIndex.size, 1)) * 112, 0, 100));
+      return {
+        coverage,
+        sources: sourceRows.sort((a, b) => b.score - a.score).slice(0, 20),
+        matches: dedupedMatches
+      };
     }
 
-    function repeatedPhrases(ngrams) {
+    function calculateInternalSimilarity(paper) {
+      const entries = shingleEntries(paper.tokens, 7);
       const counts = new Map();
-      ngrams.forEach(item => counts.set(item, (counts.get(item) || 0) + 1));
-      const items = [...counts.entries()]
+      entries.forEach(entry => counts.set(entry.key, (counts.get(entry.key) || 0) + 1));
+      const repeats = [...counts.entries()]
         .filter(([, count]) => count > 1)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8)
-        .map(([phrase, count]) => ({ phrase, count }));
-      const totalRepeated = [...counts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-      return { items, totalRepeated };
+        .map(([key, count]) => ({ phrase: key.replaceAll('|', ' '), count }));
+      const repeatedCount = [...counts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+      return {
+        score: Math.round(clamp((repeatedCount / Math.max(entries.length, 1)) * 180, 0, 100)),
+        repeats
+      };
     }
 
-    function compareReference(tokens, referenceTokens) {
-      if (!referenceTokens.length) return 0;
-      const referenceSet = new Set(getNgrams(referenceTokens, 5));
-      const paper = getNgrams(tokens, 5);
-      const matches = paper.filter(item => referenceSet.has(item)).length;
-      return clamp((matches / Math.max(paper.length, 1)) * 100 * 1.7, 0, 65);
-    }
-
-    function citationScore(text, tokenCount) {
-      const matches = text.match(/\([^)]+,\s?\d{4}[a-z]?\)|doi\.org|https?:\/\/|〔[^〕]+〕|\[[0-9,\s-]+\]/gi) || [];
-      return clamp((matches.length / Math.max(tokenCount / 180, 1)) * 4.8, 0, 24);
-    }
-
-    function quoteRisk(text, tokenCount) {
-      const quoted = (text.match(/[「『“"][^」』”"]{80,}[」』”"]/g) || []).join('');
-      return clamp((tokenize(quoted).length / Math.max(tokenCount, 1)) * 100 * 1.2, 0, 24);
-    }
-
-    function aiWritingFactors(text, tokens, sentences) {
+    function calculateAi(paper) {
+      const tokens = paper.tokens;
+      const sentences = paper.sentences;
       const lengths = sentences.map(sentence => tokenize(sentence).length).filter(Boolean);
       const avg = average(lengths);
-      const variance = average(lengths.map(length => Math.pow(length - avg, 2)));
-      const uniformity = clamp(70 - Math.sqrt(variance) * 6, 0, 80);
+      const variance = average(lengths.map(length => (length - avg) ** 2));
       const uniqueRatio = new Set(tokens).size / Math.max(tokens.length, 1);
-      const lexicalFlatness = clamp((.62 - uniqueRatio) * 180, 0, 75);
-      const transitions = text.match(/因此|此外|然而|綜上所述|值得注意的是|總而言之|in conclusion|furthermore|moreover|however|therefore/gi) || [];
-      const transitionScore = clamp((transitions.length / Math.max(sentences.length, 1)) * 120, 0, 70);
-      const hedge = text.match(/可能|通常|相對而言|一定程度|顯示|suggests|may|could|generally|typically/gi) || [];
-      const hedgeScore = clamp((hedge.length / Math.max(sentences.length, 1)) * 95, 0, 65);
-      const punctuationVariety = new Set((text.match(/[，。！？；：,.!?;:]/g) || [])).size;
-      const rhythmScore = clamp(60 - punctuationVariety * 6, 0, 55);
-      return [
-        { name: '句長一致性', score: uniformity, weight: .24, note: '句子長度越平均，越接近機器生成常見節奏' },
-        { name: '詞彙變化度', score: lexicalFlatness, weight: .25, note: '詞彙重複、變化少會提高 AI 可能性' },
-        { name: '轉折語密度', score: transitionScore, weight: .18, note: '制式轉承詞密度偏高時加權' },
-        { name: '模糊/保守語氣', score: hedgeScore, weight: .17, note: '過多保守表述可能反映模板式寫法' },
-        { name: '標點節奏', score: rhythmScore, weight: .16, note: '標點類型單一時略微加權' }
+      const transitionCount = countMatches(paper.text, /因此|此外|然而|綜上所述|換言之|值得注意的是|總而言之|in conclusion|furthermore|moreover|however|therefore|as a result/gi);
+      const hedgeCount = countMatches(paper.text, /可能|通常|相對而言|一定程度|顯示|可見|suggests|may|could|generally|typically|it can be seen/gi);
+      const citationCount = countMatches(paper.text, /\([^)]+,\s?\d{4}[a-z]?\)|doi\.org|https?:\/\/|\[[0-9,\s-]+\]/gi);
+      const punctuationVariety = new Set((paper.text.match(/[，。！？；：,.!?;:]/g) || [])).size;
+
+      const factors = [
+        {
+          name: '句長一致性',
+          score: clamp(76 - Math.sqrt(variance) * 5.4, 0, 88),
+          weight: .22,
+          note: '句子長度過度平均，會接近生成式文字的節奏。'
+        },
+        {
+          name: '詞彙多樣性不足',
+          score: clamp((.68 - uniqueRatio) * 175, 0, 88),
+          weight: .22,
+          note: '詞彙重複較高、專有名詞或個人化語彙較少。'
+        },
+        {
+          name: '模板式轉承語',
+          score: clamp((transitionCount / Math.max(sentences.length, 1)) * 130, 0, 84),
+          weight: .17,
+          note: '制式轉折詞密度偏高時，AI 風險會上升。'
+        },
+        {
+          name: '保守模糊語氣',
+          score: clamp((hedgeCount / Math.max(sentences.length, 1)) * 105, 0, 76),
+          weight: .15,
+          note: '大量保守語句可能反映未具體化的生成式段落。'
+        },
+        {
+          name: '引用支撐不足',
+          score: clamp(62 - citationCount * 8, 0, 70),
+          weight: .14,
+          note: '學術段落若缺少來源支撐，需提高人工審閱權重。'
+        },
+        {
+          name: '標點節奏單一',
+          score: clamp(58 - punctuationVariety * 5.6, 0, 58),
+          weight: .10,
+          note: '標點節奏越單一，越像平滑生成文本。'
+        }
       ];
+
+      const total = Math.round(clamp(factors.reduce((sum, item) => sum + item.score * item.weight, 0), 0, 100));
+      return { total, factors };
     }
 
-    function renderScores(similarity, ai, risk) {
+    function citationSignals(text, tokenCount) {
+      const citations = countMatches(text, /\([^)]+,\s?\d{4}[a-z]?\)|doi\.org|https?:\/\/|\[[0-9,\s-]+\]|〔[^〕]+〕/gi);
+      const quotes = (text.match(/[「『“"][^」』”"]{80,}[」』”"]/g) || []).join(' ');
+      return {
+        credit: clamp((citations / Math.max(tokenCount / 180, 1)) * 5.5, 0, 18),
+        unquotedRisk: clamp((tokenize(quotes).length / Math.max(tokenCount, 1)) * 85, 0, 18),
+        citations
+      };
+    }
+
+    function parsePastedSources(value) {
+      const clean = value.trim();
+      if (!clean) return [];
+      const parts = clean
+        .split(/\n-{3,}[^\n]*\n/g)
+        .map(item => item.trim())
+        .filter(Boolean);
+      return parts.map((text, index) => ({ name: `貼上來源 ${index + 1}`, text }));
+    }
+
+    function shingleEntries(tokens, size) {
+      const entries = [];
+      for (let i = 0; i <= tokens.length - size; i += 1) {
+        entries.push({ key: tokens.slice(i, i + size).join('|'), index: i });
+      }
+      return entries;
+    }
+
+    function tokenize(text) {
+      const lowered = text.toLowerCase();
+      const cjk = lowered.match(/[\u4e00-\u9fff]/g) || [];
+      const words = lowered.match(/[a-z0-9]+(?:[-'][a-z0-9]+)?/g) || [];
+      const cjkChunks = [];
+      for (let i = 0; i < cjk.length - 1; i += 1) cjkChunks.push(cjk.slice(i, i + 2).join(''));
+      return [...words, ...cjkChunks].filter(token => token.length > 1 && !STOPWORDS.has(token));
+    }
+
+    const STOPWORDS = new Set(['the', 'and', 'for', 'that', 'with', 'this', 'from', 'are', 'was', 'were', '研究', '學生', '本文']);
+
+    function splitParagraphs(text) {
+      return text
+        .split(/\n{2,}|(?<=。)\s*(?=第?[一二三四五六七八九十0-9]+[、.])/)
+        .map(item => item.trim())
+        .filter(item => item.length >= 24);
+    }
+
+    function splitSentences(text) {
+      return text
+        .split(/[。！？!?；;\n]+/)
+        .map(item => item.trim())
+        .filter(item => item.length >= 10);
+    }
+
+    function dedupeMatches(matches) {
+      const best = new Map();
+      for (const match of matches) {
+        const current = best.get(match.index);
+        if (!current || match.score > current.score) best.set(match.index, match);
+      }
+      return [...best.values()];
+    }
+
+    function longestRun(values) {
+      const sorted = [...new Set(values)].sort((a, b) => a - b);
+      let best = 0;
+      let current = 0;
+      let previous = null;
+      for (const value of sorted) {
+        current = previous !== null && value === previous + 1 ? current + 1 : 1;
+        best = Math.max(best, current);
+        previous = value;
+      }
+      return best;
+    }
+
+    function renderScores(similarity, topSource, ai, risk) {
       els.similarityScore.textContent = `${similarity}%`;
+      els.topSourceScore.textContent = `${topSource}%`;
       els.aiScore.textContent = `${ai}%`;
       setBar(els.similarityBar, similarity);
+      setBar(els.topSourceBar, topSource);
       setBar(els.aiBar, ai);
       els.riskLabel.textContent = risk;
       els.summaryChips.innerHTML = [
-        `整體：${risk}`,
-        similarity >= 35 ? '建議人工查來源' : '查重風險偏低',
-        ai >= 55 ? '建議要求寫作歷程' : 'AI 風險可控'
-      ].map(text => `<span class="chip">${text}</span>`).join('');
+        `整體風險：${risk}`,
+        similarity >= 25 ? '相似段落需人工核對' : '相似度偏低',
+        topSource >= 18 ? '存在主要疑似來源' : '無明顯單一來源',
+        ai >= 55 ? '建議要求草稿歷程' : 'AI 風險未達高標'
+      ].map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('');
     }
 
-    function setBar(bar, value) {
-      bar.className = `bar ${value >= 60 ? 'danger' : value >= 35 ? 'warn' : 'ok'}`;
-      bar.querySelector('span').style.width = `${value}%`;
-    }
-
-    function renderBreakdown(similarityFactors, aiFactors) {
-      const factorHtml = similarityFactors.map(([name, value, note]) => factorRow(name, Math.round(value), note)).join('');
-      const aiHtml = aiFactors.map(item => factorRow(item.name, Math.round(item.score), item.note)).join('');
-      els.breakdown.innerHTML = `<h3>查重依據</h3>${factorHtml}<h3>AI 依據</h3>${aiHtml}`;
-    }
-
-    function factorRow(name, value, note) {
-      const barClass = value >= 60 ? 'danger' : value >= 35 ? 'warn' : 'ok';
-      return `<div class="factor">
-        <div class="factor-top"><strong>${escapeHtml(name)}</strong><span>${value}%</span></div>
-        <div class="bar ${barClass}"><span style="width:${value}%"></span></div>
-        <small>${escapeHtml(note)}</small>
-      </div>`;
-    }
-
-    function renderFindings(repeats, aiFactors, similarity, ai) {
-      const findings = [];
-      if (repeats.length) {
-        findings.push(`高頻重複片語：${repeats.map(item => `${item.phrase} (${item.count} 次)`).join('、')}`);
+    function renderSourceResults(sources, sourceTotal) {
+      if (!sourceTotal) {
+        els.sourceResults.innerHTML = '<div class="empty">沒有加入比對資料庫，因此總相似度不會像正式查重系統那樣命中外部來源。請把其他論文、教材或網頁文字加入來源庫。</div>';
+        return;
       }
-      if (similarity >= 35) findings.push('查重率偏高，建議補上來源、改寫過度貼近原文的段落，並確認引用格式。');
-      if (ai >= 55) findings.push('AI 比率偏高，建議檢查寫作歷程、草稿紀錄、資料分析過程與口頭答辯一致性。');
-      const topAi = [...aiFactors].sort((a, b) => b.score - a.score)[0];
-      if (topAi) findings.push(`最明顯的 AI 訊號是「${topAi.name}」，${topAi.note}。`);
-      els.findings.innerHTML = findings.length
-        ? findings.map(item => `<div class="finding">${escapeHtml(item)}</div>`).join('')
-        : '<div class="empty">未發現明顯風險，但仍建議人工抽查引用與段落來源。</div>';
+      if (!sources.length) {
+        els.sourceResults.innerHTML = '<div class="empty">來源庫中未找到明顯重疊。這代表本機資料庫沒有命中，不代表網路或商業資料庫一定沒有相似來源。</div>';
+        return;
+      }
+      els.sourceResults.innerHTML = sources.map(source => `
+        <div class="row">
+          <div class="row-top"><strong>${escapeHtml(source.name)}</strong><span>${source.score}%</span></div>
+          <div class="bar ${barClass(source.score)}"><span style="width:${source.score}%"></span></div>
+          <span>命中指紋：${source.matchedShingles}，最長連續命中：${source.longestRun}，來源 token：${source.tokenCount}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderMatches(matches, repeats) {
+      const blocks = [];
+      blocks.push(...matches.map(match => `
+        <div class="row">
+          <div class="row-top"><strong>第 ${match.index + 1} 段 · ${escapeHtml(match.source)}</strong><span>${match.score}%</span></div>
+          <div class="snippet">${escapeHtml(trimSnippet(match.paragraph))}</div>
+        </div>
+      `));
+      blocks.push(...repeats.map(item => `
+        <div class="row">
+          <div class="row-top"><strong>內部重複片語</strong><span>${item.count} 次</span></div>
+          <div class="snippet">${escapeHtml(item.phrase)}</div>
+        </div>
+      `));
+      els.matchResults.innerHTML = blocks.length ? blocks.join('') : '<div class="empty">沒有明顯命中段落或內部重複片語。</div>';
+      els.matchedCount.textContent = String(matches.length);
+    }
+
+    function renderAi(ai) {
+      els.aiResults.innerHTML = ai.factors.map(item => `
+        <div class="factor">
+          <div class="factor-top"><strong>${escapeHtml(item.name)}</strong><span>${Math.round(item.score)}%</span></div>
+          <div class="bar ${barClass(item.score)}"><span style="width:${Math.round(item.score)}%"></span></div>
+          <small>${escapeHtml(item.note)}</small>
+        </div>
+      `).join('');
     }
 
     function buildReport(data) {
-      const repeated = data.repeated.items.map(item => `- ${item.phrase}：${item.count} 次`).join('\n') || '- 未偵測到高頻重複片語';
-      const ai = data.aiFactors.map(item => `- ${item.name}：${Math.round(item.score)}%（${item.note}）`).join('\n');
-      return `論文查重與 AI 比率初篩報告
+      const sources = data.sources.length
+        ? data.sources.map((item, index) => `${index + 1}. ${item.name}：${item.score}%（命中指紋 ${item.matchedShingles}，最長連續 ${item.longestRun}）`).join('\n')
+        : '沒有來源命中，或未提供比對資料庫。';
+      const matches = data.matches.length
+        ? data.matches.map((item, index) => `${index + 1}. 第 ${item.index + 1} 段｜${item.source}｜${item.score}%\n${trimSnippet(item.paragraph, 180)}`).join('\n\n')
+        : '沒有明顯命中段落。';
+      const repeats = data.internal.repeats.length
+        ? data.internal.repeats.map(item => `- ${item.phrase}：${item.count} 次`).join('\n')
+        : '沒有高頻內部重複片語。';
+      const ai = data.ai.factors.map(item => `- ${item.name}：${Math.round(item.score)}%｜${item.note}`).join('\n');
+
+      return `論文原創性與 AI 檢測初篩報告
 產生時間：${new Date().toLocaleString('zh-Hant')}
 
-字詞數：${data.tokens.length}
-句子數：${data.sentences.length}
-是否提供參考文本：${data.referenceUsed ? '是' : '否'}
+一、總覽
+- 主文 token：${data.paper.tokens.length}
+- 句子數：${data.paper.sentences.length}
+- 比對來源數：${data.sourceTotal}
+- 總相似度：${data.similarity}%
+- 原始來源覆蓋率：${data.rawCoverage}%
+- 最高單一來源：${data.topSource}%
+- AI 寫作可能性：${data.ai.total}%
+- 整體風險：${data.risk}
 
-查重率估算：${data.similarity}%
-AI 比率估算：${data.ai}%
-整體風險：${data.risk}
+二、相似來源
+${sources}
 
-查重分項：
-- 內部重複片語：${Math.round(data.internalReuse)}%
-- 參考文本重疊：${Math.round(data.referenceOverlap)}%
-- 引用抵扣：-${Math.round(data.citationDensity)}%
-- 長引文風險：${Math.round(data.longQuoteRisk)}%
+三、命中段落
+${matches}
 
-高頻重複片語：
-${repeated}
+四、內部重複
+${repeats}
 
-AI 分項：
+五、引用與引文訊號
+- 偵測引用數：${data.citations.citations}
+- 引用抵扣：${Math.round(data.citations.credit)}%
+- 長引文風險：${Math.round(data.citations.unquotedRisk)}%
+
+六、AI 寫作分項
 ${ai}
 
-提醒：本工具為瀏覽器端初篩，不連接商業查重資料庫或專有 AI 檢測模型。正式判定請搭配原始來源、引用規範與人工審閱。`;
+七、判讀提醒
+本工具約等於正式系統的本機初篩介面與可解釋報告，不連接 Turnitin、iThenticate、期刊全文庫、學生作業庫或專有 AI 偵測模型。若要接近正式查重效果，必須把歷年論文、教材、網頁文字、同儕作業與已知來源加入比對資料庫。`;
+    }
+
+    function renderSourceList() {
+      if (!state.sources.length) {
+        els.sourceList.innerHTML = '<div class="empty">尚未加入比對來源。若沒有來源庫，查重只能做內部重複與引用結構初篩。</div>';
+        return;
+      }
+      els.sourceList.innerHTML = state.sources.map((source, index) => `
+        <div class="source-item">
+          <strong>${index + 1}. ${escapeHtml(source.name)}</strong>
+          <span>${tokenize(source.text).length.toLocaleString('zh-Hant')} token</span>
+        </div>
+      `).join('');
+    }
+
+    function updateSidebar(tokens = tokenize(normalizeText(els.paperText.value)), sourceTotal = state.sources.length + parsePastedSources(els.sourceText.value).length, matches = 0, risk = els.riskLabel.textContent || '未分析') {
+      els.wordCount.textContent = tokens.length.toLocaleString('zh-Hant');
+      els.sourceCount.textContent = String(sourceTotal);
+      els.matchedCount.textContent = String(matches);
+      els.riskLabel.textContent = risk;
+    }
+
+    function clearAll() {
+      state.sources = [];
+      state.latestReport = '';
+      els.paperText.value = '';
+      els.sourceText.value = '';
+      els.paperFile.value = '';
+      els.sourceFiles.value = '';
+      els.downloadBtn.disabled = true;
+      renderSourceList();
+      updateSidebar([], 0, 0, '未分析');
+      renderScores(0, 0, 0, '未分析');
+      els.similarityScore.textContent = '--%';
+      els.topSourceScore.textContent = '--%';
+      els.aiScore.textContent = '--%';
+      els.summaryChips.innerHTML = '';
+      els.sourceResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
+      els.matchResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
+      els.aiResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
+      els.report.textContent = '';
+      els.paperDrop.querySelector('span').innerHTML = '<strong>主論文</strong>選擇或拖曳 1 篇要檢測的論文';
+      els.sourceDrop.querySelector('span').innerHTML = '<strong>比對資料庫</strong>一次選擇多篇來源、同學論文或教材';
+    }
+
+    function showMessage(message) {
+      els.sourceResults.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
     }
 
     function downloadReport() {
-      const blob = new Blob([latestReport], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([state.latestReport], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `paper-check-report-${Date.now()}.txt`;
+      a.download = `originality-ai-report-${Date.now()}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     }
 
-    function updateCounts(tokens = tokenize(normalizeText(els.paperText.value)), sentences = splitSentences(normalizeText(els.paperText.value))) {
-      els.wordCount.textContent = tokens.length.toLocaleString('zh-Hant');
-      els.sentenceCount.textContent = sentences.length.toLocaleString('zh-Hant');
+    function setBar(bar, value) {
+      bar.className = `bar ${barClass(value)}`;
+      bar.querySelector('span').style.width = `${Math.round(value)}%`;
     }
 
-    function clearAll() {
-      els.paperText.value = '';
-      els.referenceText.value = '';
-      els.fileInput.value = '';
-      latestReport = '';
-      els.downloadBtn.disabled = true;
-      els.report.hidden = true;
-      els.report.textContent = '';
-      els.similarityScore.textContent = '--%';
-      els.aiScore.textContent = '--%';
-      setBar(els.similarityBar, 0);
-      setBar(els.aiBar, 0);
-      els.summaryChips.innerHTML = '';
-      els.breakdown.innerHTML = '';
-      els.findings.innerHTML = '<div class="empty">尚未檢測。請上傳論文或貼上文字後按「開始檢測」。</div>';
-      els.riskLabel.textContent = '未分析';
-      els.dropZone.querySelector('span').innerHTML = '<strong>選擇或拖曳檔案</strong>TXT、PDF、DOCX，檔案只在本機瀏覽器處理';
-      updateCounts([], []);
+    function barClass(value) {
+      if (value >= 50) return 'danger';
+      if (value >= 25) return 'warn';
+      return 'ok';
     }
 
-    function renderEmpty(message) {
-      els.findings.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
+    function riskLabel(value) {
+      if (value >= 62) return '高';
+      if (value >= 34) return '中';
+      return '低';
     }
 
     function normalizeText(text) {
-      return text.replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim();
+      return String(text || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
     }
 
-    function labelRisk(value) {
-      if (value >= 65) return '高';
-      if (value >= 38) return '中';
-      return '低';
+    function trimSnippet(text, max = 260) {
+      const clean = normalizeText(text);
+      return clean.length > max ? `${clean.slice(0, max)}...` : clean;
+    }
+
+    function countMatches(text, regex) {
+      return (text.match(regex) || []).length;
     }
 
     function average(values) {
@@ -788,6 +1156,8 @@ ${ai}
         "'": '&#39;'
       }[char]));
     }
+
+    updateSidebar();
   </script>
 </body>
 </html>
