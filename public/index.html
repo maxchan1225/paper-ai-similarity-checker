@@ -784,10 +784,41 @@ Abstract: This study examines how generative artificial intelligence tools influ
         const titleScore = similarity(tokenize(paper.title), tokenize(candidate.title)) * 100;
         const abstractScore = similarity(paper.tokens, candidateTokens) * 100;
         const phraseScore = phraseOverlap(paper.tokens, candidateTokens, 5) * 100;
-        const doiBoost = paper.doi && candidate.doi && paper.doi.toLowerCase() === candidate.doi.toLowerCase() ? 100 : 0;
-        const score = Math.round(clamp(Math.max(doiBoost, titleScore * .32 + abstractScore * .38 + phraseScore * .30), 0, 100));
-        return { ...candidate, score, titleScore: Math.round(titleScore), abstractScore: Math.round(abstractScore), phraseScore: Math.round(phraseScore) };
+        const exactDoi = Boolean(paper.doi && candidate.doi && paper.doi.toLowerCase() === candidate.doi.toLowerCase());
+        const exactTitle = titleScore >= 92;
+        const hasAbstract = tokenize(candidate.abstract).length >= 20;
+        const titleOnly = !hasAbstract && candidateTokens.length < 35;
+        const metadataScore = titleScore * .16 + abstractScore * .54 + phraseScore * .30;
+        const recordSignal = exactDoi ? 10 : exactTitle ? 7 : 0;
+        const evidenceCap = evidenceScoreCap({ hasAbstract, titleOnly, candidateTokens, abstractScore, phraseScore, exactDoi, exactTitle });
+        const score = Math.round(clamp(metadataScore + recordSignal, 0, evidenceCap));
+        const evidence = exactDoi
+          ? 'DOI/索引記錄命中，不等於全文 100% 相似'
+          : exactTitle
+            ? '題名高度相同，需看摘要/全文證據'
+            : hasAbstract
+              ? '題名與公開摘要比對'
+              : '僅有題名或 metadata，分數已保守上限';
+        return {
+          ...candidate,
+          score,
+          evidence,
+          exactDoi,
+          exactTitle,
+          titleScore: Math.round(titleScore),
+          abstractScore: Math.round(abstractScore),
+          phraseScore: Math.round(phraseScore)
+        };
       }).sort((a, b) => b.score - a.score);
+    }
+
+    function evidenceScoreCap(detail) {
+      if (detail.titleOnly) return detail.exactDoi || detail.exactTitle ? 28 : 20;
+      if (!detail.hasAbstract) return 24;
+      if (detail.candidateTokens.length < 60) return 45;
+      if (detail.abstractScore >= 55 && detail.phraseScore >= 35) return 88;
+      if (detail.abstractScore >= 35 || detail.phraseScore >= 25) return 72;
+      return detail.exactDoi || detail.exactTitle ? 48 : 60;
     }
 
     function similarity(aTokens, bTokens) {
@@ -895,6 +926,7 @@ Abstract: This study examines how generative artificial intelligence tools influ
           <div class="bar ${barClass(item.score)}"><span style="width:${item.score}%"></span></div>
           <div class="meta">${escapeHtml([item.indexName, item.source, item.year, item.authors].filter(Boolean).join(' · '))}</div>
           <div class="meta">題名 ${item.titleScore}% · 摘要 ${item.abstractScore}% · 片語 ${item.phraseScore}%</div>
+          <div class="meta">${escapeHtml(item.evidence)}</div>
           ${item.abstract ? `<div class="snippet">${escapeHtml(trimSnippet(item.abstract, 240))}</div>` : '<div class="empty">此來源沒有公開摘要，分數主要依題名與 metadata 估算。</div>'}
           ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟公開來源</a>` : ''}
         </div>
@@ -929,7 +961,7 @@ Abstract: This study examines how generative artificial intelligence tools influ
     function buildReport(data) {
       const statuses = data.statuses.map(item => `- ${item.name}: ${item.ok ? '成功' : '失敗'} (${item.detail})`).join('\n');
       const sources = data.scored.length
-        ? data.scored.slice(0, 12).map((item, index) => `${index + 1}. ${item.title}\n   分數：${item.score}%｜索引：${item.indexName}｜年份：${item.year || '未知'}\n   URL：${item.url || '無'}`).join('\n')
+        ? data.scored.slice(0, 12).map((item, index) => `${index + 1}. ${item.title}\n   分數：${item.score}%｜索引：${item.indexName}｜年份：${item.year || '未知'}\n   證據：${item.evidence}\n   URL：${item.url || '無'}`).join('\n')
         : '沒有找到公開候選來源。';
       const matches = data.matches.length
         ? data.matches.map((item, index) => `${index + 1}. ${item.indexName}｜${item.score}%｜${item.source}\n${trimSnippet(item.sentence, 220)}`).join('\n\n')

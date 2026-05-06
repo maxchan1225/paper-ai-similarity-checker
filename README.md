@@ -8,6 +8,8 @@ This app runs in the browser and does not connect to Turnitin, iThenticate, comm
 
 Because the app uses no paid credentials, public services may rate-limit requests. Similarity results are based on public titles, abstracts, metadata, and available descriptions rather than commercial full-text repositories.
 
+Exact DOI or title matches are treated as bibliographic record matches, not as 100% full-text similarity. Scores are capped when only title or metadata evidence is available.
+
 ## Features
 
 - Upload `.txt`, `.pdf`, and `.docx` files for the paper.
