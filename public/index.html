@@ -240,7 +240,7 @@
 
     .score-row {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -491,6 +491,11 @@
                 <strong id="aiScore">--%</strong>
                 <div class="bar" id="aiBar"><span></span></div>
               </div>
+              <div class="score">
+                <label>結果可信度</label>
+                <strong id="confidenceScore">--</strong>
+                <div class="bar" id="confidenceBar"><span></span></div>
+              </div>
             </div>
 
             <div class="chips" id="summaryChips"></div>
@@ -541,9 +546,11 @@
       similarityScore: document.getElementById('similarityScore'),
       topSourceScore: document.getElementById('topSourceScore'),
       aiScore: document.getElementById('aiScore'),
+      confidenceScore: document.getElementById('confidenceScore'),
       similarityBar: document.getElementById('similarityBar'),
       topSourceBar: document.getElementById('topSourceBar'),
       aiBar: document.getElementById('aiBar'),
+      confidenceBar: document.getElementById('confidenceBar'),
       summaryChips: document.getElementById('summaryChips'),
       statusChips: document.getElementById('statusChips'),
       sourceResults: document.getElementById('sourceResults'),
@@ -670,18 +677,20 @@ Abstract: This study examines how generative artificial intelligence tools influ
       const topScore = top?.score || 0;
       const indexSimilarity = Math.round(clamp(topScore * .72 + average(scored.slice(0, 5).map(item => item.score)) * .28, 0, 100));
       const ai = calculateAi(paper);
+      const coverage = calculateConfidence(statuses, scored);
       const overall = Math.round(indexSimilarity * .58 + ai.total * .42);
       const risk = riskLabel(overall);
       const matches = findSuspiciousSentences(paper, scored.slice(0, 5));
+      const aiAdvice = buildAiAdvice(ai);
 
-      renderScores(indexSimilarity, topScore, ai.total, risk);
-      renderStatus(statuses);
+      renderScores(indexSimilarity, topScore, ai.total, risk, coverage);
+      renderStatus(statuses, coverage);
       renderSources(scored);
       renderMatches(matches, scored.length);
-      renderAi(ai);
+      renderAi(ai, aiAdvice);
       updateSidebar(paper.tokens, scored.length, statuses.filter(item => item.ok).length, risk);
 
-      state.latestReport = buildReport({ paper, query, statuses, scored, matches, indexSimilarity, topScore, ai, risk });
+      state.latestReport = buildReport({ paper, query, statuses, scored, matches, indexSimilarity, topScore, ai, aiAdvice, risk, coverage });
       els.report.textContent = state.latestReport;
       els.downloadBtn.disabled = false;
       setLoading(false);
@@ -880,6 +889,44 @@ Abstract: This study examines how generative artificial intelligence tools influ
       return { total: Math.round(clamp(factors.reduce((sum, item) => sum + item.score * item.weight, 0), 0, 100)), factors };
     }
 
+    function calculateConfidence(statuses, scored) {
+      const success = statuses.filter(item => item.ok).length;
+      const failures = statuses.filter(item => !item.ok).map(item => item.name);
+      const evidenceRich = scored.filter(item => tokenize(item.abstract).length >= 40).length;
+      const candidateDepth = Math.min(scored.length, 12);
+      const score = Math.round(clamp(success * 22 + evidenceRich * 7 + candidateDepth * 2, 0, 100));
+      const label = score >= 70 ? '高' : score >= 42 ? '中' : '低';
+      const interpretation = label === '高'
+        ? '公開索引覆蓋較完整，可作為較穩定的預檢，但仍非正式查重。'
+        : label === '中'
+          ? '公開索引覆蓋尚可，結果適合輔助判斷，仍需人工核對來源。'
+          : '公開索引覆蓋不足，不建議作正式判定。';
+      return { score, label, success, total: INDEXES.length, failures, evidenceRich, interpretation };
+    }
+
+    function buildAiAdvice(ai) {
+      const sorted = [...ai.factors].sort((a, b) => b.score - a.score);
+      const adviceMap = {
+        '句長一致性': '把長句、短句和中等句混合使用；加入研究限制、例外情況與具體分析步驟，避免每段都用相同節奏收束。',
+        '詞彙多樣性不足': '補入你的研究場景、樣本特徵、資料來源、操作定義與專有名詞；刪掉泛泛而談的重複詞，改用更精準的學術表述。',
+        '模板式轉承語': '減少「此外、然而、綜上所述」等機械轉折；改用能反映真正邏輯的句子，例如「這一結果與前述訪談資料相互印證」。',
+        '保守模糊語氣': '把「可能、通常、一定程度」改成有證據支撐的表述；補上數據、引用、例子或反例，讓判斷更具體。',
+        '引用支撐不足': '為關鍵論點加入 APA/MLA/Chicago 等正式引用；將未引用的背景敘述改成有來源、有年份、有頁碼或 DOI 的句子。',
+        '標點節奏單一': '重新切分過長段落，使用冒號、分號或條列前先確認邏輯；讓每段有明確主題句、證據句與解釋句。'
+      };
+      const recommendations = sorted.slice(0, 4).map(item => ({
+        name: item.name,
+        score: Math.round(item.score),
+        advice: adviceMap[item.name]
+      }));
+      recommendations.push({
+        name: '保留寫作歷程',
+        score: ai.total,
+        advice: '保留大綱、草稿、修改紀錄、資料分析表與引用整理表；若被質疑 AI 代寫，這些證據比單純降低分數更有效。'
+      });
+      return recommendations;
+    }
+
     function dedupeCandidates(candidates) {
       const map = new Map();
       for (const candidate of candidates) {
@@ -895,24 +942,31 @@ Abstract: This study examines how generative artificial intelligence tools influ
       return [item.title, item.abstract, item.url].filter(Boolean).join(' ').length;
     }
 
-    function renderScores(similarityScore, topScore, aiScore, risk) {
+    function renderScores(similarityScore, topScore, aiScore, risk, coverage = { label: '--', score: 0, success: 0, total: 3, failures: [], interpretation: '' }) {
       els.similarityScore.textContent = `${similarityScore}%`;
       els.topSourceScore.textContent = `${topScore}%`;
       els.aiScore.textContent = `${aiScore}%`;
+      els.confidenceScore.textContent = coverage.label;
       setBar(els.similarityBar, similarityScore);
       setBar(els.topSourceBar, topScore);
       setBar(els.aiBar, aiScore);
+      setBar(els.confidenceBar, coverage.score, true);
       els.riskLabel.textContent = risk;
       els.summaryChips.innerHTML = [
+        `相似度：${similarityScore}%`,
+        `可信度：${coverage.label}`,
+        `成功索引：${coverage.success}/${coverage.total}`,
+        coverage.failures.length ? `失敗索引：${coverage.failures.join('、')}` : '失敗索引：無',
         `整體風險：${risk}`,
         similarityScore >= 25 ? '公開來源需人工核對' : '公開索引相似度偏低',
-        topScore >= 30 ? '存在主要疑似來源' : '無明顯單一公開來源',
-        aiScore >= 55 ? '建議要求草稿歷程' : 'AI 風險未達高標'
+        aiScore >= 55 ? '建議要求草稿歷程' : 'AI 風險未達高標',
+        coverage.interpretation
       ].map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('');
     }
 
-    function renderStatus(statuses) {
-      els.statusChips.innerHTML = statuses.map(item => `<span class="chip ${item.ok ? 'ok' : 'warn'}">${escapeHtml(item.name)}：${escapeHtml(item.detail)}</span>`).join('');
+    function renderStatus(statuses, coverage) {
+      const statusHtml = statuses.map(item => `<span class="chip ${item.ok ? 'ok' : 'warn'}">${escapeHtml(item.name)}：${escapeHtml(item.detail)}</span>`).join('');
+      els.statusChips.innerHTML = `${statusHtml}<span class="chip ${coverage.label === '低' ? 'danger' : coverage.label === '中' ? 'warn' : 'ok'}">解讀：${escapeHtml(coverage.interpretation)}</span>`;
     }
 
     function renderSources(scored) {
@@ -948,14 +1002,21 @@ Abstract: This study examines how generative artificial intelligence tools influ
         : '<div class="empty">沒有找到明顯接近公開摘要或題名的句子。這不代表商業全文庫一定沒有命中。</div>';
     }
 
-    function renderAi(ai) {
-      els.aiResults.innerHTML = ai.factors.map(item => `
+    function renderAi(ai, advice = []) {
+      const factorHtml = ai.factors.map(item => `
         <div class="factor">
           <div class="factor-top"><strong>${escapeHtml(item.name)}</strong><span>${Math.round(item.score)}%</span></div>
           <div class="bar ${barClass(item.score)}"><span style="width:${Math.round(item.score)}%"></span></div>
           <small>${escapeHtml(item.note)}</small>
         </div>
       `).join('');
+      const adviceHtml = advice.map(item => `
+        <div class="row">
+          <div class="row-top"><strong>${escapeHtml(item.name)}</strong><span>${item.score}%</span></div>
+          <div class="snippet">${escapeHtml(item.advice)}</div>
+        </div>
+      `).join('');
+      els.aiResults.innerHTML = `${factorHtml}<h3>降低 AI 率的有效方法</h3>${adviceHtml}`;
     }
 
     function buildReport(data) {
@@ -967,6 +1028,7 @@ Abstract: This study examines how generative artificial intelligence tools influ
         ? data.matches.map((item, index) => `${index + 1}. ${item.indexName}｜${item.score}%｜${item.source}\n${trimSnippet(item.sentence, 220)}`).join('\n\n')
         : '沒有明顯疑似段落。';
       const ai = data.ai.factors.map(item => `- ${item.name}: ${Math.round(item.score)}%｜${item.note}`).join('\n');
+      const aiAdvice = data.aiAdvice.map(item => `- ${item.name}: ${item.advice}`).join('\n');
 
       return `免費公開學術索引查重與 AI 初篩報告
 產生時間：${new Date().toLocaleString('zh-Hant')}
@@ -984,6 +1046,9 @@ ${statuses}
 - 公開索引相似度：${data.indexSimilarity}%
 - 最高疑似來源：${data.topScore}%
 - AI 寫作可能性：${data.ai.total}%
+- 可信度：${data.coverage.label}（成功索引 ${data.coverage.success}/${data.coverage.total}）
+- 失敗索引：${data.coverage.failures.length ? data.coverage.failures.join('、') : '無'}
+- 解讀：${data.coverage.interpretation}
 - 整體風險：${data.risk}
 - 公開候選來源：${data.scored.length}
 
@@ -996,7 +1061,10 @@ ${matches}
 六、AI 寫作分項
 ${ai}
 
-七、判讀提醒
+七、降低 AI 率的有效方法
+${aiAdvice}
+
+八、判讀提醒
 本報告使用 Crossref、Semantic Scholar、arXiv 等公開索引的題名、摘要與 metadata，不連接 Turnitin、iThenticate、學生作業庫、付費期刊全文庫或專有 AI 偵測模型。無 API key 模式可能遇到公開服務限流；若來源沒有公開摘要或全文，分數會偏保守；若論文高度改寫，也需要人工審閱。`;
     }
 
@@ -1021,6 +1089,7 @@ ${ai}
       els.similarityScore.textContent = '--%';
       els.topSourceScore.textContent = '--%';
       els.aiScore.textContent = '--%';
+      els.confidenceScore.textContent = '--';
       resetOutput('尚未搜尋公開索引。');
     }
 
@@ -1050,8 +1119,9 @@ ${ai}
       els.analyzeBtn.textContent = isLoading ? '搜尋中...' : '搜尋公開索引並產生報告';
     }
 
-    function setBar(bar, value) {
+    function setBar(bar, value, inverted = false) {
       bar.className = `bar ${barClass(value)}`;
+      if (inverted) bar.className = `bar ${value >= 70 ? 'ok' : value >= 42 ? 'warn' : 'danger'}`;
       bar.querySelector('span').style.width = `${Math.round(value)}%`;
     }
 

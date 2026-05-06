@@ -16,8 +16,9 @@ Exact DOI or title matches are treated as bibliographic record matches, not as 1
 - Extract DOI, title, and keywords from the submitted paper.
 - Search Crossref, Semantic Scholar, and arXiv public indexes.
 - Estimate public-index similarity from title overlap, abstract overlap, and phrase overlap.
-- Show public source ranking, highest suspicious source, likely matching sentences, index status, and report links.
+- Show public source ranking, highest suspicious source, likely matching sentences, index status, confidence level, failed indexes, interpretation, and report links.
 - Estimate AI-writing likelihood from sentence uniformity, lexical variety, transition patterns, hedging, citation support, and punctuation rhythm.
+- Provide practical recommendations for lowering AI-risk signals, including citation support, sentence rhythm, draft evidence, and specificity.
 - Download a structured public-index originality and AI screening report.
 
 ## Deploy
