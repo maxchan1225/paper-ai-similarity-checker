@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "teacherstudy-ac70b"
+  },
+  "targets": {
+    "teacherstudy-ac70b": {
+      "hosting": {
+        "paper-checker": [
+          "teacherstudy-ac70b-paper-checker"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
