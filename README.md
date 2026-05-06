@@ -1,25 +1,21 @@
-# Open Academic Index Originality and AI Screening
+# AI Writing Risk Screener
 
-A Firebase Hosting single-page app for uploading a paper, searching free public academic indexes, and producing an originality and AI-writing likelihood screening report.
+A Firebase Hosting single-page app for uploading or pasting a paper and producing an AI-writing risk report.
 
-## Important Scope
+## Scope
 
-This app runs in the browser and does not connect to Turnitin, iThenticate, commercial journal databases, student-paper repositories, or proprietary AI detectors. It queries public academic indexes such as Crossref, Semantic Scholar, and arXiv without requiring a commercial API key.
+This version intentionally does not provide plagiarism or public-index similarity scores. Earlier public-index matching depended on unstable third-party availability and could be misunderstood as a formal originality score.
 
-Because the app uses no paid credentials, public services may rate-limit requests. Similarity results are based on public titles, abstracts, metadata, and available descriptions rather than commercial full-text repositories.
-
-Exact DOI or title matches are treated as bibliographic record matches, not as 100% full-text similarity. Scores are capped when only title or metadata evidence is available.
+The app does not connect to Turnitin, iThenticate, commercial databases, or proprietary AI detector models. It estimates AI-writing risk from explainable text features and is intended for screening, revision guidance, and manual review prioritization.
 
 ## Features
 
-- Upload `.txt`, `.pdf`, and `.docx` files for the paper.
-- Extract DOI, title, and keywords from the submitted paper.
-- Search Crossref, Semantic Scholar, and arXiv public indexes.
-- Estimate public-index similarity from title overlap, abstract overlap, and phrase overlap.
-- Show public source ranking, highest suspicious source, likely matching sentences, index status, confidence level, failed indexes, interpretation, and report links.
-- Estimate AI-writing likelihood from sentence uniformity, lexical variety, transition patterns, hedging, citation support, and punctuation rhythm.
-- Provide practical recommendations for lowering AI-risk signals, including citation support, sentence rhythm, draft evidence, and specificity.
-- Download a structured public-index originality and AI screening report.
+- Upload `.txt`, `.pdf`, and `.docx` files.
+- Estimate AI writing rate from sentence rhythm, lexical diversity, transition patterns, hedging, citation support, data density, method traces, paragraph rhythm, author-process traces, and punctuation rhythm.
+- Show confidence level based on text length, sentence count, paragraph count, and citation evidence.
+- Rank high-risk paragraphs.
+- Provide practical recommendations for lowering AI-risk signals.
+- Download a structured AI writing risk report.
 
 ## Deploy
 
