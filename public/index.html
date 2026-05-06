@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>論文原創性與 AI 檢測報告</title>
-  <meta name="description" content="上傳論文與比對資料庫，產生類 Turnitin / iThenticate 的相似度與 AI 寫作初篩報告。">
+  <title>免費公開學術索引查重與 AI 初篩</title>
+  <meta name="description" content="上傳論文後，自動查詢 Crossref、Semantic Scholar、arXiv 等公開學術索引，產生相似來源與 AI 寫作初篩報告。">
   <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
   <style>
     :root {
       color-scheme: light;
       --ink: #17202e;
       --muted: #667085;
-      --line: #d8dee8;
+      --line: #d9e0ea;
       --paper: #f5f6f8;
-      --panel: #ffffff;
-      --accent: #12615f;
+      --panel: #fff;
+      --accent: #11655f;
       --accent-soft: #e6f3f1;
-      --gold: #966f2f;
+      --gold: #91672b;
       --danger: #b42318;
       --warn: #b54708;
       --ok: #067647;
@@ -33,7 +33,7 @@
       background: var(--paper);
     }
 
-    button, input, textarea, select { font: inherit; }
+    button, input, textarea { font: inherit; }
 
     .app {
       min-height: 100vh;
@@ -53,7 +53,7 @@
     .brand h1 {
       margin: 0;
       font-size: 27px;
-      line-height: 1.2;
+      line-height: 1.18;
       letter-spacing: 0;
     }
 
@@ -119,14 +119,14 @@
 
     .topbar p {
       margin: 7px 0 0;
-      max-width: 860px;
+      max-width: 920px;
       color: var(--muted);
       line-height: 1.55;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: minmax(360px, .95fr) minmax(440px, 1.05fr);
+      grid-template-columns: minmax(360px, .85fr) minmax(480px, 1.15fr);
       gap: 18px;
       align-items: start;
     }
@@ -161,16 +161,10 @@
       gap: 14px;
     }
 
-    .drop-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
     .drop-zone {
       border: 1.5px dashed #98a4b3;
       border-radius: 8px;
-      min-height: 118px;
+      min-height: 126px;
       display: grid;
       place-items: center;
       text-align: center;
@@ -193,7 +187,7 @@
 
     textarea {
       width: 100%;
-      min-height: 220px;
+      min-height: 300px;
       resize: vertical;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -203,31 +197,17 @@
       background: #fff;
     }
 
-    .sources {
+    .query-box {
       display: grid;
       gap: 8px;
-      max-height: 168px;
-      overflow: auto;
-      padding-right: 4px;
     }
 
-    .source-item {
+    .query-box input {
+      width: 100%;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 10px;
-      display: grid;
-      gap: 4px;
-      background: #fbfcfe;
-    }
-
-    .source-item strong {
-      font-size: 14px;
-      overflow-wrap: anywhere;
-    }
-
-    .source-item span {
-      color: var(--muted);
-      font-size: 13px;
+      min-height: 42px;
+      padding: 0 12px;
     }
 
     .actions {
@@ -281,7 +261,7 @@
     }
 
     .score strong {
-      font-size: clamp(36px, 5vw, 58px);
+      font-size: clamp(34px, 5vw, 56px);
       line-height: .95;
       letter-spacing: 0;
     }
@@ -304,7 +284,7 @@
     .bar.warn span { background: var(--warn); }
     .bar.danger span { background: var(--danger); }
 
-    .chips {
+    .chips, .status-grid {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -317,6 +297,10 @@
       color: #344054;
       font-size: 13px;
     }
+
+    .chip.ok { background: #ecfdf3; color: var(--ok); }
+    .chip.warn { background: #fffaeb; color: var(--warn); }
+    .chip.danger { background: #fef3f2; color: var(--danger); }
 
     .tabs {
       display: flex;
@@ -344,10 +328,7 @@
     .tab-page { display: none; }
     .tab-page.active { display: grid; gap: 12px; }
 
-    .table {
-      display: grid;
-      gap: 8px;
-    }
+    .table { display: grid; gap: 8px; }
 
     .row {
       border: 1px solid var(--line);
@@ -362,11 +343,17 @@
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      align-items: center;
+      align-items: flex-start;
     }
 
     .row-top strong { overflow-wrap: anywhere; }
     .row-top span { color: var(--muted); white-space: nowrap; }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
 
     .snippet {
       border-left: 4px solid var(--gold);
@@ -405,7 +392,7 @@
     .report {
       white-space: pre-wrap;
       line-height: 1.65;
-      max-height: 340px;
+      max-height: 360px;
       overflow: auto;
       padding: 14px;
       background: #0f172a;
@@ -414,6 +401,8 @@
       font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
       font-size: 13px;
     }
+
+    a { color: var(--accent); }
 
     @media (max-width: 1120px) {
       .app { grid-template-columns: 1fr; }
@@ -425,7 +414,7 @@
     @media (max-width: 720px) {
       main { padding: 18px; }
       aside { padding: 22px 18px; }
-      .drop-grid, .score-row, .side-metrics { grid-template-columns: 1fr; }
+      .score-row, .side-metrics { grid-template-columns: 1fr; }
       .topbar h2 { font-size: 20px; }
     }
   </style>
@@ -434,16 +423,16 @@
   <div class="app">
     <aside>
       <div class="brand">
-        <h1>原創性與 AI 檢測報告</h1>
-        <p>把一篇主論文與多篇來源文件放在同一個本機比對庫中，產生更接近正式查重報告的相似度來源、段落命中與 AI 寫作風險。</p>
+        <h1>公開學術索引查重與 AI 初篩</h1>
+        <p>不用商業 API key。系統會讀取主論文，搜尋 Crossref、Semantic Scholar、arXiv 等公開學術索引，產生可解釋的相似來源與 AI 寫作風險。</p>
       </div>
       <div class="notice">
-        這是「類 Turnitin / iThenticate」的本機初篩版：它不連接商業資料庫、期刊全文庫或專有 AI 模型，但會用文件指紋、段落比對、引用偵測與寫作節奏做可解釋報告。
+        這不是 Turnitin / iThenticate，也沒有學生作業庫或付費期刊全文庫。它能做的是公開索引、摘要、題名與可取得資料的查重初篩；無 API key 模式可能遇到公開服務限流。
       </div>
       <div class="side-metrics">
         <div class="side-metric"><strong id="wordCount">0</strong><span>主文 token</span></div>
-        <div class="side-metric"><strong id="sourceCount">0</strong><span>比對來源</span></div>
-        <div class="side-metric"><strong id="matchedCount">0</strong><span>命中段落</span></div>
+        <div class="side-metric"><strong id="candidateCount">0</strong><span>公開候選來源</span></div>
+        <div class="side-metric"><strong id="indexCount">0/3</strong><span>索引查詢</span></div>
         <div class="side-metric"><strong id="riskLabel">未分析</strong><span>整體風險</span></div>
       </div>
     </aside>
@@ -451,8 +440,8 @@
     <main>
       <section class="topbar">
         <div>
-          <h2>上傳主論文與比對資料庫</h2>
-          <p>若你要測 5 篇論文，請把其中一篇設為「主論文」，其餘 4 篇放入「比對資料庫」。系統會顯示每個來源的相似度、命中段落和 AI 風險分項。</p>
+          <h2>上傳論文，自動搜尋公開學術來源</h2>
+          <p>系統會自動抽取 DOI、標題與關鍵詞。你也可以手動補一個更準的搜尋題名或關鍵詞，尤其適合中文論文、摘要很短或 PDF 排版複雜的情況。</p>
         </div>
         <button class="btn secondary" id="sampleBtn" type="button">載入示範資料</button>
       </section>
@@ -460,30 +449,20 @@
       <section class="grid">
         <div class="panel">
           <div class="panel-head">
-            <h3>檢測輸入</h3>
-            <p>支援 TXT、PDF、DOCX。所有檔案只在瀏覽器內讀取，不會上傳到伺服器。</p>
+            <h3>論文輸入</h3>
+            <p>支援 TXT、PDF、DOCX。檔案只在瀏覽器內轉文字，查詢時只送出 DOI、題名或關鍵詞，不上傳全文到公開索引。</p>
           </div>
           <div class="panel-body">
-            <div class="drop-grid">
-              <label class="drop-zone" id="paperDrop">
-                <input id="paperFile" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden>
-                <span><strong>主論文</strong>選擇或拖曳 1 篇要檢測的論文</span>
-              </label>
-              <label class="drop-zone" id="sourceDrop">
-                <input id="sourceFiles" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple hidden>
-                <span><strong>比對資料庫</strong>一次選擇多篇來源、同學論文或教材</span>
-              </label>
+            <label class="drop-zone" id="dropZone">
+              <input id="fileInput" type="file" accept=".txt,.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" hidden>
+              <span><strong>選擇或拖曳論文</strong>TXT、PDF、DOCX</span>
+            </label>
+            <textarea id="paperText" placeholder="也可以直接貼上論文全文、摘要或章節內容..."></textarea>
+            <div class="query-box">
+              <input id="manualQuery" type="text" placeholder="可選：手動輸入題名、DOI 或關鍵詞，提高公開索引搜尋準確度">
             </div>
-
-            <textarea id="paperText" placeholder="也可以直接貼上主論文全文..."></textarea>
-            <textarea id="sourceText" placeholder="可選：貼上網頁、教材、已知來源或其他論文文字。每個來源請用三個減號分隔，例如：&#10;--- 來源 A ---&#10;文字...&#10;--- 來源 B ---&#10;文字..."></textarea>
-
-            <div class="sources" id="sourceList">
-              <div class="empty">尚未加入比對來源。若沒有來源庫，查重只能做內部重複與引用結構初篩。</div>
-            </div>
-
             <div class="actions">
-              <button class="btn" id="analyzeBtn" type="button">產生檢測報告</button>
+              <button class="btn" id="analyzeBtn" type="button">搜尋公開索引並產生報告</button>
               <button class="btn secondary" id="clearBtn" type="button">清除</button>
               <button class="btn secondary" id="downloadBtn" type="button" disabled>下載完整報告</button>
             </div>
@@ -493,17 +472,17 @@
         <div class="panel">
           <div class="panel-head">
             <h3>報告摘要</h3>
-            <p>相似度會以主文被來源庫命中的文字覆蓋率估算；AI 比率為寫作特徵初篩，不作為單獨定罪依據。</p>
+            <p>公開索引相似度由題名、摘要與可取得描述文字估算；若來源沒有摘要或全文，分數會偏保守。</p>
           </div>
           <div class="panel-body">
             <div class="score-row">
               <div class="score">
-                <label>總相似度</label>
+                <label>公開索引相似度</label>
                 <strong id="similarityScore">--%</strong>
                 <div class="bar" id="similarityBar"><span></span></div>
               </div>
               <div class="score">
-                <label>最高單一來源</label>
+                <label>最高疑似來源</label>
                 <strong id="topSourceScore">--%</strong>
                 <div class="bar" id="topSourceBar"><span></span></div>
               </div>
@@ -515,30 +494,25 @@
             </div>
 
             <div class="chips" id="summaryChips"></div>
+            <div class="status-grid" id="statusChips"></div>
 
             <div class="tabs">
-              <button class="tab active" type="button" data-tab="sourcesTab">來源比對</button>
-              <button class="tab" type="button" data-tab="matchesTab">命中段落</button>
+              <button class="tab active" type="button" data-tab="sourcesTab">公開來源</button>
+              <button class="tab" type="button" data-tab="matchesTab">疑似段落</button>
               <button class="tab" type="button" data-tab="aiTab">AI 分析</button>
               <button class="tab" type="button" data-tab="reportTab">完整報告</button>
             </div>
 
             <section class="tab-page active" id="sourcesTab">
-              <div id="sourceResults" class="table">
-                <div class="empty">尚未產生報告。</div>
-              </div>
+              <div id="sourceResults" class="table"><div class="empty">尚未搜尋公開索引。</div></div>
             </section>
 
             <section class="tab-page" id="matchesTab">
-              <div id="matchResults" class="table">
-                <div class="empty">尚未產生報告。</div>
-              </div>
+              <div id="matchResults" class="table"><div class="empty">尚未產生疑似段落。</div></div>
             </section>
 
             <section class="tab-page" id="aiTab">
-              <div id="aiResults" class="table">
-                <div class="empty">尚未產生報告。</div>
-              </div>
+              <div id="aiResults" class="table"><div class="empty">尚未產生 AI 分析。</div></div>
             </section>
 
             <section class="tab-page" id="reportTab">
@@ -552,20 +526,17 @@
 
   <script type="module">
     const els = {
-      paperDrop: document.getElementById('paperDrop'),
-      sourceDrop: document.getElementById('sourceDrop'),
-      paperFile: document.getElementById('paperFile'),
-      sourceFiles: document.getElementById('sourceFiles'),
+      dropZone: document.getElementById('dropZone'),
+      fileInput: document.getElementById('fileInput'),
       paperText: document.getElementById('paperText'),
-      sourceText: document.getElementById('sourceText'),
-      sourceList: document.getElementById('sourceList'),
+      manualQuery: document.getElementById('manualQuery'),
       analyzeBtn: document.getElementById('analyzeBtn'),
       clearBtn: document.getElementById('clearBtn'),
       sampleBtn: document.getElementById('sampleBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       wordCount: document.getElementById('wordCount'),
-      sourceCount: document.getElementById('sourceCount'),
-      matchedCount: document.getElementById('matchedCount'),
+      candidateCount: document.getElementById('candidateCount'),
+      indexCount: document.getElementById('indexCount'),
       riskLabel: document.getElementById('riskLabel'),
       similarityScore: document.getElementById('similarityScore'),
       topSourceScore: document.getElementById('topSourceScore'),
@@ -574,84 +545,66 @@
       topSourceBar: document.getElementById('topSourceBar'),
       aiBar: document.getElementById('aiBar'),
       summaryChips: document.getElementById('summaryChips'),
+      statusChips: document.getElementById('statusChips'),
       sourceResults: document.getElementById('sourceResults'),
       matchResults: document.getElementById('matchResults'),
       aiResults: document.getElementById('aiResults'),
       report: document.getElementById('report')
     };
 
-    const state = {
-      sources: [],
-      latestReport: ''
-    };
+    const state = { latestReport: '' };
+    const INDEXES = ['Crossref', 'Semantic Scholar', 'arXiv'];
+    const samplePaper = `Title: Generative artificial intelligence and student research writing in secondary education
 
-    const samplePaper = `本研究探討生成式人工智慧工具在高中專題寫作中的影響。研究指出，當學生使用 AI 協助整理資料時，能夠更快形成研究問題與初步架構。然而，若缺乏明確的引用規範與學習歷程紀錄，學生可能直接採用機器生成的段落，導致文本原創性降低。
+Abstract: This study examines how generative artificial intelligence tools influence student research writing in secondary education. The findings suggest that students can use AI systems to organize sources, generate preliminary outlines, and revise academic language. However, when teachers do not require process evidence, students may submit fluent but weakly supported paragraphs that obscure authorship and reduce originality. The study argues that assessment design should include research logs, annotated sources, draft comparison, and oral reflection. These practices help teachers distinguish responsible assistance from inappropriate substitution and provide a more reliable basis for academic integrity decisions.`;
 
-在教學實務上，教師需要建立分階段提交機制，包括研究動機、文獻摘錄、資料分析、草稿修訂與最終反思。透過這些過程性證據，教師能更有效區分合理輔助與不當代寫。綜上所述，生成式人工智慧並不必然削弱學習成效，關鍵在於課程設計是否要求學生展示思考過程。`;
+    setupEvents();
+    updateSidebar();
 
-    const sampleSources = [
-      {
-        name: '來源 A - AI 與專題寫作教材',
-        text: `當學生使用 AI 協助整理資料時，能夠更快形成研究問題與初步架構。若缺乏明確的引用規範與學習歷程紀錄，學生可能直接採用機器生成的段落，進而降低文本原創性。`
-      },
-      {
-        name: '來源 B - 課程評量設計',
-        text: `教師需要建立分階段提交機制，包括研究動機、文獻摘錄、資料分析、草稿修訂與最終反思。過程性證據能幫助教師區分合理輔助與不當代寫。`
-      }
-    ];
-
-    setupDrop(els.paperDrop, els.paperFile, async files => {
-      const [file] = files;
-      if (!file) return;
-      els.paperDrop.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>讀取中...`;
-      els.paperText.value = await readFileText(file);
-      els.paperDrop.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>主論文已載入`;
-      updateSidebar();
-    });
-
-    setupDrop(els.sourceDrop, els.sourceFiles, async files => {
-      els.sourceDrop.querySelector('span').innerHTML = `<strong>${files.length} 個來源</strong>讀取中...`;
-      for (const file of files) {
-        state.sources.push({ name: file.name, text: await readFileText(file) });
-      }
-      els.sourceDrop.querySelector('span').innerHTML = `<strong>${files.length} 個來源</strong>已加入比對資料庫`;
-      renderSourceList();
-      updateSidebar();
-    });
-
-    document.querySelectorAll('.tab').forEach(button => {
-      button.addEventListener('click', () => {
-        document.querySelectorAll('.tab, .tab-page').forEach(item => item.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.tab).classList.add('active');
-      });
-    });
-
-    els.paperText.addEventListener('input', updateSidebar);
-    els.sourceText.addEventListener('input', updateSidebar);
-    els.analyzeBtn.addEventListener('click', analyze);
-    els.clearBtn.addEventListener('click', clearAll);
-    els.downloadBtn.addEventListener('click', downloadReport);
-    els.sampleBtn.addEventListener('click', () => {
-      els.paperText.value = samplePaper;
-      state.sources = [...sampleSources];
-      renderSourceList();
-      analyze();
-    });
-
-    function setupDrop(zone, input, onFiles) {
-      zone.addEventListener('click', () => input.click());
-      zone.addEventListener('dragover', event => {
+    function setupEvents() {
+      els.dropZone.addEventListener('click', () => els.fileInput.click());
+      els.dropZone.addEventListener('dragover', event => {
         event.preventDefault();
-        zone.classList.add('is-dragging');
+        els.dropZone.classList.add('is-dragging');
       });
-      zone.addEventListener('dragleave', () => zone.classList.remove('is-dragging'));
-      zone.addEventListener('drop', async event => {
+      els.dropZone.addEventListener('dragleave', () => els.dropZone.classList.remove('is-dragging'));
+      els.dropZone.addEventListener('drop', async event => {
         event.preventDefault();
-        zone.classList.remove('is-dragging');
-        await onFiles([...event.dataTransfer.files]);
+        els.dropZone.classList.remove('is-dragging');
+        const [file] = event.dataTransfer.files;
+        if (file) await loadFile(file);
       });
-      input.addEventListener('change', async () => onFiles([...input.files]));
+      els.fileInput.addEventListener('change', async () => {
+        const [file] = els.fileInput.files;
+        if (file) await loadFile(file);
+      });
+      els.paperText.addEventListener('input', updateSidebar);
+      els.analyzeBtn.addEventListener('click', analyze);
+      els.clearBtn.addEventListener('click', clearAll);
+      els.downloadBtn.addEventListener('click', downloadReport);
+      els.sampleBtn.addEventListener('click', () => {
+        els.paperText.value = samplePaper;
+        els.manualQuery.value = 'generative artificial intelligence student research writing secondary education';
+        analyze();
+      });
+      document.querySelectorAll('.tab').forEach(button => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.tab, .tab-page').forEach(item => item.classList.remove('active'));
+          button.classList.add('active');
+          document.getElementById(button.dataset.tab).classList.add('active');
+        });
+      });
+    }
+
+    async function loadFile(file) {
+      els.dropZone.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>讀取中...`;
+      try {
+        els.paperText.value = await readFileText(file);
+        els.dropZone.querySelector('span').innerHTML = `<strong>${escapeHtml(file.name)}</strong>已載入，可開始搜尋`;
+        updateSidebar();
+      } catch (error) {
+        els.dropZone.querySelector('span').innerHTML = `<strong>讀取失敗</strong>${escapeHtml(error.message)}`;
+      }
     }
 
     async function readFileText(file) {
@@ -681,133 +634,196 @@
       return result.value;
     }
 
-    function analyze() {
-      const paper = makeDocument('主論文', els.paperText.value);
-      if (paper.tokens.length < 60) {
-        showMessage('請提供更完整的主論文內容，至少需要約 60 個 token 才能產生可靠報告。');
+    async function analyze() {
+      const paper = makePaper(els.paperText.value);
+      if (paper.tokens.length < 50) {
+        showMessage('請提供更完整的論文內容，至少需要約 50 個 token 才能查詢與分析。');
         return;
       }
 
-      const pastedSources = parsePastedSources(els.sourceText.value);
-      const sources = [...state.sources, ...pastedSources]
-        .map(source => makeDocument(source.name, source.text))
-        .filter(source => source.tokens.length >= 20);
+      setLoading(true);
+      resetOutput('正在查詢 Crossref、Semantic Scholar 與 arXiv...');
 
-      const similarity = calculateSimilarity(paper, sources);
-      const internal = calculateInternalSimilarity(paper);
-      const citations = citationSignals(paper.text, paper.tokens.length);
-      const adjustedSimilarity = Math.round(clamp(
-        similarity.coverage + internal.score * .22 + citations.unquotedRisk - citations.credit,
-        0,
-        100
-      ));
-      const ai = calculateAi(paper);
-      const topSource = similarity.sources[0]?.score || 0;
-      const overall = Math.round(adjustedSimilarity * .62 + ai.total * .38);
-      const risk = riskLabel(overall);
+      const query = buildQuery(paper, els.manualQuery.value);
+      const statuses = [];
+      const resultGroups = await Promise.allSettled([
+        searchCrossref(query, paper.doi),
+        searchSemanticScholar(query),
+        searchArxiv(query)
+      ]);
 
-      renderScores(adjustedSimilarity, topSource, ai.total, risk);
-      renderSourceResults(similarity.sources, sources.length);
-      renderMatches(similarity.matches, internal.repeats);
-      renderAi(ai);
-      updateSidebar(paper.tokens, sources.length, similarity.matches.length, risk);
-
-      state.latestReport = buildReport({
-        paper,
-        sourceTotal: sources.length,
-        similarity: adjustedSimilarity,
-        rawCoverage: similarity.coverage,
-        topSource,
-        internal,
-        citations,
-        ai,
-        risk,
-        sources: similarity.sources,
-        matches: similarity.matches
+      const candidates = [];
+      resultGroups.forEach((result, index) => {
+        const name = INDEXES[index];
+        if (result.status === 'fulfilled') {
+          candidates.push(...result.value.map(item => ({ ...item, indexName: name })));
+          statuses.push({ name, ok: true, detail: `${result.value.length} 筆` });
+        } else {
+          const code = result.reason?.message || '';
+          const detail = code === '429' ? '無 key 限流，稍後再試' : '連線受限或暫時失敗';
+          statuses.push({ name, ok: false, detail });
+        }
       });
+
+      const scored = scoreCandidates(paper, dedupeCandidates(candidates));
+      const top = scored[0];
+      const topScore = top?.score || 0;
+      const indexSimilarity = Math.round(clamp(topScore * .72 + average(scored.slice(0, 5).map(item => item.score)) * .28, 0, 100));
+      const ai = calculateAi(paper);
+      const overall = Math.round(indexSimilarity * .58 + ai.total * .42);
+      const risk = riskLabel(overall);
+      const matches = findSuspiciousSentences(paper, scored.slice(0, 5));
+
+      renderScores(indexSimilarity, topScore, ai.total, risk);
+      renderStatus(statuses);
+      renderSources(scored);
+      renderMatches(matches, scored.length);
+      renderAi(ai);
+      updateSidebar(paper.tokens, scored.length, statuses.filter(item => item.ok).length, risk);
+
+      state.latestReport = buildReport({ paper, query, statuses, scored, matches, indexSimilarity, topScore, ai, risk });
       els.report.textContent = state.latestReport;
       els.downloadBtn.disabled = false;
+      setLoading(false);
     }
 
-    function makeDocument(name, text) {
+    function buildQuery(paper, manual) {
+      const manualClean = normalizeText(manual);
+      if (manualClean) return manualClean;
+      if (paper.doi) return paper.doi;
+      if (paper.title) return paper.title;
+      return paper.keywords.slice(0, 8).join(' ');
+    }
+
+    async function searchCrossref(query, doi) {
+      const endpoint = doi
+        ? `https://api.crossref.org/works/${encodeURIComponent(doi)}`
+        : `https://api.crossref.org/works?rows=10&query.bibliographic=${encodeURIComponent(query)}`;
+      const data = await fetchJson(endpoint);
+      const items = doi ? [data.message] : data.message.items || [];
+      return items.map(item => ({
+        id: item.DOI || item.URL || item.title?.[0],
+        title: plain(item.title?.[0]),
+        abstract: stripTags(item.abstract || ''),
+        year: item.published?.['date-parts']?.[0]?.[0] || item.issued?.['date-parts']?.[0]?.[0] || '',
+        authors: (item.author || []).slice(0, 4).map(author => [author.given, author.family].filter(Boolean).join(' ')).join(', '),
+        url: item.URL || (item.DOI ? `https://doi.org/${item.DOI}` : ''),
+        source: item['container-title']?.[0] || 'Crossref',
+        doi: item.DOI || ''
+      })).filter(item => item.title);
+    }
+
+    async function searchSemanticScholar(query) {
+      const endpoint = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=10&fields=title,abstract,url,year,authors,externalIds,venue,openAccessPdf`;
+      const data = await fetchJson(endpoint);
+      return (data.data || []).map(item => ({
+        id: item.paperId || item.url || item.title,
+        title: plain(item.title),
+        abstract: plain(item.abstract),
+        year: item.year || '',
+        authors: (item.authors || []).slice(0, 4).map(author => author.name).join(', '),
+        url: item.openAccessPdf?.url || item.url || '',
+        source: item.venue || 'Semantic Scholar',
+        doi: item.externalIds?.DOI || ''
+      })).filter(item => item.title);
+    }
+
+    async function searchArxiv(query) {
+      const endpoint = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=8`;
+      const text = await fetchText(endpoint);
+      const doc = new DOMParser().parseFromString(text, 'application/xml');
+      return [...doc.querySelectorAll('entry')].map(entry => ({
+        id: entry.querySelector('id')?.textContent || entry.querySelector('title')?.textContent,
+        title: plain(entry.querySelector('title')?.textContent),
+        abstract: plain(entry.querySelector('summary')?.textContent),
+        year: (entry.querySelector('published')?.textContent || '').slice(0, 4),
+        authors: [...entry.querySelectorAll('author name')].slice(0, 4).map(item => item.textContent).join(', '),
+        url: entry.querySelector('id')?.textContent || '',
+        source: 'arXiv',
+        doi: entry.querySelector('arxiv\\:doi, doi')?.textContent || ''
+      })).filter(item => item.title);
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`${response.status}`);
+      return response.json();
+    }
+
+    async function fetchText(url) {
+      const response = await fetch(url, { headers: { Accept: 'application/atom+xml,text/xml' } });
+      if (!response.ok) throw new Error(`${response.status}`);
+      return response.text();
+    }
+
+    function makePaper(text) {
       const clean = normalizeText(text);
-      return {
-        name,
-        text: clean,
-        tokens: tokenize(clean),
-        paragraphs: splitParagraphs(clean),
-        sentences: splitSentences(clean)
-      };
+      const sentences = splitSentences(clean);
+      const title = extractTitle(clean);
+      const doi = extractDoi(clean);
+      const tokens = tokenize(clean);
+      return { text: clean, title, doi, tokens, sentences, keywords: keywords(tokens) };
     }
 
-    function calculateSimilarity(paper, sources) {
-      if (!sources.length) return { coverage: 0, sources: [], matches: [] };
+    function extractTitle(text) {
+      const lines = text.split(/\n+/).map(item => item.trim()).filter(Boolean);
+      const titled = lines.find(line => /^title[:：]/i.test(line));
+      if (titled) return titled.replace(/^title[:：]\s*/i, '').slice(0, 180);
+      return lines.find(line => line.length >= 12 && line.length <= 180) || splitSentences(text)[0]?.slice(0, 160) || '';
+    }
 
-      const paperShingles = shingleEntries(paper.tokens, 7);
-      const paperIndex = new Map(paperShingles.map(entry => [entry.key, entry]));
-      const covered = new Set();
-      const sourceRows = [];
+    function extractDoi(text) {
+      const match = text.match(/\b10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
+      return match ? match[0].replace(/[.,;，。；]+$/, '') : '';
+    }
+
+    function scoreCandidates(paper, candidates) {
+      return candidates.map(candidate => {
+        const candidateText = [candidate.title, candidate.abstract].filter(Boolean).join(' ');
+        const candidateTokens = tokenize(candidateText);
+        const titleScore = similarity(tokenize(paper.title), tokenize(candidate.title)) * 100;
+        const abstractScore = similarity(paper.tokens, candidateTokens) * 100;
+        const phraseScore = phraseOverlap(paper.tokens, candidateTokens, 5) * 100;
+        const doiBoost = paper.doi && candidate.doi && paper.doi.toLowerCase() === candidate.doi.toLowerCase() ? 100 : 0;
+        const score = Math.round(clamp(Math.max(doiBoost, titleScore * .32 + abstractScore * .38 + phraseScore * .30), 0, 100));
+        return { ...candidate, score, titleScore: Math.round(titleScore), abstractScore: Math.round(abstractScore), phraseScore: Math.round(phraseScore) };
+      }).sort((a, b) => b.score - a.score);
+    }
+
+    function similarity(aTokens, bTokens) {
+      if (!aTokens.length || !bTokens.length) return 0;
+      const a = new Set(aTokens);
+      const b = new Set(bTokens);
+      const intersection = [...a].filter(token => b.has(token)).length;
+      const union = new Set([...a, ...b]).size;
+      return intersection / Math.max(union, 1);
+    }
+
+    function phraseOverlap(aTokens, bTokens, size) {
+      const a = new Set(shingles(aTokens, size));
+      const b = new Set(shingles(bTokens, size));
+      if (!a.size || !b.size) return 0;
+      return [...a].filter(item => b.has(item)).length / Math.max(Math.min(a.size, b.size), 1);
+    }
+
+    function shingles(tokens, size) {
+      const items = [];
+      for (let i = 0; i <= tokens.length - size; i += 1) items.push(tokens.slice(i, i + size).join('|'));
+      return items;
+    }
+
+    function findSuspiciousSentences(paper, candidates) {
       const matches = [];
-
-      for (const source of sources) {
-        const sourceSet = new Set(shingleEntries(source.tokens, 7).map(entry => entry.key));
-        const hitPositions = [];
-        for (const entry of paperShingles) {
-          if (sourceSet.has(entry.key)) {
-            covered.add(entry.index);
-            hitPositions.push(entry.index);
-          }
+      for (const sentence of paper.sentences) {
+        const sentenceTokens = tokenize(sentence);
+        if (sentenceTokens.length < 8) continue;
+        for (const candidate of candidates) {
+          const sourceTokens = tokenize([candidate.title, candidate.abstract].join(' '));
+          const score = Math.round(Math.max(similarity(sentenceTokens, sourceTokens) * 100, phraseOverlap(sentenceTokens, sourceTokens, 4) * 100));
+          if (score >= 18) matches.push({ sentence, score, source: candidate.title, indexName: candidate.indexName });
         }
-
-        const score = Math.round(clamp((hitPositions.length / Math.max(paperShingles.length, 1)) * 115, 0, 100));
-        const density = longestRun(hitPositions);
-        if (score > 0) {
-          sourceRows.push({
-            name: source.name,
-            score,
-            matchedShingles: hitPositions.length,
-            longestRun: density,
-            tokenCount: source.tokens.length
-          });
-        }
-
-        const paragraphHits = paper.paragraphs.map((paragraph, index) => {
-          const pTokens = tokenize(paragraph);
-          const pShingles = shingleEntries(pTokens, 7).map(entry => entry.key);
-          if (!pShingles.length) return null;
-          const hits = pShingles.filter(key => sourceSet.has(key)).length;
-          const paragraphScore = Math.round((hits / pShingles.length) * 100);
-          return paragraphScore >= 18 ? { index, paragraph, score: paragraphScore, source: source.name } : null;
-        }).filter(Boolean);
-
-        matches.push(...paragraphHits);
       }
-
-      const dedupedMatches = dedupeMatches(matches)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 12);
-      const coverage = Math.round(clamp((covered.size / Math.max(paperIndex.size, 1)) * 112, 0, 100));
-      return {
-        coverage,
-        sources: sourceRows.sort((a, b) => b.score - a.score).slice(0, 20),
-        matches: dedupedMatches
-      };
-    }
-
-    function calculateInternalSimilarity(paper) {
-      const entries = shingleEntries(paper.tokens, 7);
-      const counts = new Map();
-      entries.forEach(entry => counts.set(entry.key, (counts.get(entry.key) || 0) + 1));
-      const repeats = [...counts.entries()]
-        .filter(([, count]) => count > 1)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([key, count]) => ({ phrase: key.replaceAll('|', ' '), count }));
-      const repeatedCount = [...counts.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
-      return {
-        score: Math.round(clamp((repeatedCount / Math.max(entries.length, 1)) * 180, 0, 100)),
-        repeats
-      };
+      return matches.sort((a, b) => b.score - a.score).slice(0, 10);
     }
 
     function calculateAi(paper) {
@@ -823,173 +839,81 @@
       const punctuationVariety = new Set((paper.text.match(/[，。！？；：,.!?;:]/g) || [])).size;
 
       const factors = [
-        {
-          name: '句長一致性',
-          score: clamp(76 - Math.sqrt(variance) * 5.4, 0, 88),
-          weight: .22,
-          note: '句子長度過度平均，會接近生成式文字的節奏。'
-        },
-        {
-          name: '詞彙多樣性不足',
-          score: clamp((.68 - uniqueRatio) * 175, 0, 88),
-          weight: .22,
-          note: '詞彙重複較高、專有名詞或個人化語彙較少。'
-        },
-        {
-          name: '模板式轉承語',
-          score: clamp((transitionCount / Math.max(sentences.length, 1)) * 130, 0, 84),
-          weight: .17,
-          note: '制式轉折詞密度偏高時，AI 風險會上升。'
-        },
-        {
-          name: '保守模糊語氣',
-          score: clamp((hedgeCount / Math.max(sentences.length, 1)) * 105, 0, 76),
-          weight: .15,
-          note: '大量保守語句可能反映未具體化的生成式段落。'
-        },
-        {
-          name: '引用支撐不足',
-          score: clamp(62 - citationCount * 8, 0, 70),
-          weight: .14,
-          note: '學術段落若缺少來源支撐，需提高人工審閱權重。'
-        },
-        {
-          name: '標點節奏單一',
-          score: clamp(58 - punctuationVariety * 5.6, 0, 58),
-          weight: .10,
-          note: '標點節奏越單一，越像平滑生成文本。'
-        }
+        { name: '句長一致性', score: clamp(76 - Math.sqrt(variance) * 5.4, 0, 88), weight: .22, note: '句子長度過度平均，會接近生成式文字節奏。' },
+        { name: '詞彙多樣性不足', score: clamp((.68 - uniqueRatio) * 175, 0, 88), weight: .22, note: '詞彙重複較高、專有名詞或個人化語彙較少。' },
+        { name: '模板式轉承語', score: clamp((transitionCount / Math.max(sentences.length, 1)) * 130, 0, 84), weight: .17, note: '制式轉折詞密度偏高時，AI 風險會上升。' },
+        { name: '保守模糊語氣', score: clamp((hedgeCount / Math.max(sentences.length, 1)) * 105, 0, 76), weight: .15, note: '大量保守語句可能反映未具體化的生成式段落。' },
+        { name: '引用支撐不足', score: clamp(62 - citationCount * 8, 0, 70), weight: .14, note: '學術段落若缺少來源支撐，需提高人工審閱權重。' },
+        { name: '標點節奏單一', score: clamp(58 - punctuationVariety * 5.6, 0, 58), weight: .10, note: '標點節奏越單一，越像平滑生成文本。' }
       ];
-
-      const total = Math.round(clamp(factors.reduce((sum, item) => sum + item.score * item.weight, 0), 0, 100));
-      return { total, factors };
+      return { total: Math.round(clamp(factors.reduce((sum, item) => sum + item.score * item.weight, 0), 0, 100)), factors };
     }
 
-    function citationSignals(text, tokenCount) {
-      const citations = countMatches(text, /\([^)]+,\s?\d{4}[a-z]?\)|doi\.org|https?:\/\/|\[[0-9,\s-]+\]|〔[^〕]+〕/gi);
-      const quotes = (text.match(/[「『“"][^」』”"]{80,}[」』”"]/g) || []).join(' ');
-      return {
-        credit: clamp((citations / Math.max(tokenCount / 180, 1)) * 5.5, 0, 18),
-        unquotedRisk: clamp((tokenize(quotes).length / Math.max(tokenCount, 1)) * 85, 0, 18),
-        citations
-      };
-    }
-
-    function parsePastedSources(value) {
-      const clean = value.trim();
-      if (!clean) return [];
-      const parts = clean
-        .split(/\n-{3,}[^\n]*\n/g)
-        .map(item => item.trim())
-        .filter(Boolean);
-      return parts.map((text, index) => ({ name: `貼上來源 ${index + 1}`, text }));
-    }
-
-    function shingleEntries(tokens, size) {
-      const entries = [];
-      for (let i = 0; i <= tokens.length - size; i += 1) {
-        entries.push({ key: tokens.slice(i, i + size).join('|'), index: i });
+    function dedupeCandidates(candidates) {
+      const map = new Map();
+      for (const candidate of candidates) {
+        const key = (candidate.doi || candidate.title || candidate.id || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (!key) continue;
+        const current = map.get(key);
+        if (!current || textWeight(candidate) > textWeight(current)) map.set(key, candidate);
       }
-      return entries;
+      return [...map.values()];
     }
 
-    function tokenize(text) {
-      const lowered = text.toLowerCase();
-      const cjk = lowered.match(/[\u4e00-\u9fff]/g) || [];
-      const words = lowered.match(/[a-z0-9]+(?:[-'][a-z0-9]+)?/g) || [];
-      const cjkChunks = [];
-      for (let i = 0; i < cjk.length - 1; i += 1) cjkChunks.push(cjk.slice(i, i + 2).join(''));
-      return [...words, ...cjkChunks].filter(token => token.length > 1 && !STOPWORDS.has(token));
+    function textWeight(item) {
+      return [item.title, item.abstract, item.url].filter(Boolean).join(' ').length;
     }
 
-    const STOPWORDS = new Set(['the', 'and', 'for', 'that', 'with', 'this', 'from', 'are', 'was', 'were', '研究', '學生', '本文']);
-
-    function splitParagraphs(text) {
-      return text
-        .split(/\n{2,}|(?<=。)\s*(?=第?[一二三四五六七八九十0-9]+[、.])/)
-        .map(item => item.trim())
-        .filter(item => item.length >= 24);
-    }
-
-    function splitSentences(text) {
-      return text
-        .split(/[。！？!?；;\n]+/)
-        .map(item => item.trim())
-        .filter(item => item.length >= 10);
-    }
-
-    function dedupeMatches(matches) {
-      const best = new Map();
-      for (const match of matches) {
-        const current = best.get(match.index);
-        if (!current || match.score > current.score) best.set(match.index, match);
-      }
-      return [...best.values()];
-    }
-
-    function longestRun(values) {
-      const sorted = [...new Set(values)].sort((a, b) => a - b);
-      let best = 0;
-      let current = 0;
-      let previous = null;
-      for (const value of sorted) {
-        current = previous !== null && value === previous + 1 ? current + 1 : 1;
-        best = Math.max(best, current);
-        previous = value;
-      }
-      return best;
-    }
-
-    function renderScores(similarity, topSource, ai, risk) {
-      els.similarityScore.textContent = `${similarity}%`;
-      els.topSourceScore.textContent = `${topSource}%`;
-      els.aiScore.textContent = `${ai}%`;
-      setBar(els.similarityBar, similarity);
-      setBar(els.topSourceBar, topSource);
-      setBar(els.aiBar, ai);
+    function renderScores(similarityScore, topScore, aiScore, risk) {
+      els.similarityScore.textContent = `${similarityScore}%`;
+      els.topSourceScore.textContent = `${topScore}%`;
+      els.aiScore.textContent = `${aiScore}%`;
+      setBar(els.similarityBar, similarityScore);
+      setBar(els.topSourceBar, topScore);
+      setBar(els.aiBar, aiScore);
       els.riskLabel.textContent = risk;
       els.summaryChips.innerHTML = [
         `整體風險：${risk}`,
-        similarity >= 25 ? '相似段落需人工核對' : '相似度偏低',
-        topSource >= 18 ? '存在主要疑似來源' : '無明顯單一來源',
-        ai >= 55 ? '建議要求草稿歷程' : 'AI 風險未達高標'
+        similarityScore >= 25 ? '公開來源需人工核對' : '公開索引相似度偏低',
+        topScore >= 30 ? '存在主要疑似來源' : '無明顯單一公開來源',
+        aiScore >= 55 ? '建議要求草稿歷程' : 'AI 風險未達高標'
       ].map(item => `<span class="chip">${escapeHtml(item)}</span>`).join('');
     }
 
-    function renderSourceResults(sources, sourceTotal) {
-      if (!sourceTotal) {
-        els.sourceResults.innerHTML = '<div class="empty">沒有加入比對資料庫，因此總相似度不會像正式查重系統那樣命中外部來源。請把其他論文、教材或網頁文字加入來源庫。</div>';
+    function renderStatus(statuses) {
+      els.statusChips.innerHTML = statuses.map(item => `<span class="chip ${item.ok ? 'ok' : 'warn'}">${escapeHtml(item.name)}：${escapeHtml(item.detail)}</span>`).join('');
+    }
+
+    function renderSources(scored) {
+      if (!scored.length) {
+        els.sourceResults.innerHTML = '<div class="empty">沒有找到公開候選來源。你可以在左側手動輸入更精準的英文題名、DOI 或核心關鍵詞再試一次。</div>';
         return;
       }
-      if (!sources.length) {
-        els.sourceResults.innerHTML = '<div class="empty">來源庫中未找到明顯重疊。這代表本機資料庫沒有命中，不代表網路或商業資料庫一定沒有相似來源。</div>';
-        return;
-      }
-      els.sourceResults.innerHTML = sources.map(source => `
+      els.sourceResults.innerHTML = scored.slice(0, 15).map(item => `
         <div class="row">
-          <div class="row-top"><strong>${escapeHtml(source.name)}</strong><span>${source.score}%</span></div>
-          <div class="bar ${barClass(source.score)}"><span style="width:${source.score}%"></span></div>
-          <span>命中指紋：${source.matchedShingles}，最長連續命中：${source.longestRun}，來源 token：${source.tokenCount}</span>
+          <div class="row-top"><strong>${escapeHtml(item.title)}</strong><span>${item.score}%</span></div>
+          <div class="bar ${barClass(item.score)}"><span style="width:${item.score}%"></span></div>
+          <div class="meta">${escapeHtml([item.indexName, item.source, item.year, item.authors].filter(Boolean).join(' · '))}</div>
+          <div class="meta">題名 ${item.titleScore}% · 摘要 ${item.abstractScore}% · 片語 ${item.phraseScore}%</div>
+          ${item.abstract ? `<div class="snippet">${escapeHtml(trimSnippet(item.abstract, 240))}</div>` : '<div class="empty">此來源沒有公開摘要，分數主要依題名與 metadata 估算。</div>'}
+          ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">開啟公開來源</a>` : ''}
         </div>
       `).join('');
     }
 
-    function renderMatches(matches, repeats) {
-      const blocks = [];
-      blocks.push(...matches.map(match => `
-        <div class="row">
-          <div class="row-top"><strong>第 ${match.index + 1} 段 · ${escapeHtml(match.source)}</strong><span>${match.score}%</span></div>
-          <div class="snippet">${escapeHtml(trimSnippet(match.paragraph))}</div>
-        </div>
-      `));
-      blocks.push(...repeats.map(item => `
-        <div class="row">
-          <div class="row-top"><strong>內部重複片語</strong><span>${item.count} 次</span></div>
-          <div class="snippet">${escapeHtml(item.phrase)}</div>
-        </div>
-      `));
-      els.matchResults.innerHTML = blocks.length ? blocks.join('') : '<div class="empty">沒有明顯命中段落或內部重複片語。</div>';
-      els.matchedCount.textContent = String(matches.length);
+    function renderMatches(matches, candidateTotal) {
+      if (!candidateTotal) {
+        els.matchResults.innerHTML = '<div class="empty">沒有公開候選來源，因此無法產生疑似段落。</div>';
+        return;
+      }
+      els.matchResults.innerHTML = matches.length
+        ? matches.map(item => `
+          <div class="row">
+            <div class="row-top"><strong>${escapeHtml(item.indexName)} · ${escapeHtml(item.source)}</strong><span>${item.score}%</span></div>
+            <div class="snippet">${escapeHtml(trimSnippet(item.sentence, 280))}</div>
+          </div>
+        `).join('')
+        : '<div class="empty">沒有找到明顯接近公開摘要或題名的句子。這不代表商業全文庫一定沒有命中。</div>';
     }
 
     function renderAi(ai) {
@@ -1003,96 +927,80 @@
     }
 
     function buildReport(data) {
-      const sources = data.sources.length
-        ? data.sources.map((item, index) => `${index + 1}. ${item.name}：${item.score}%（命中指紋 ${item.matchedShingles}，最長連續 ${item.longestRun}）`).join('\n')
-        : '沒有來源命中，或未提供比對資料庫。';
+      const statuses = data.statuses.map(item => `- ${item.name}: ${item.ok ? '成功' : '失敗'} (${item.detail})`).join('\n');
+      const sources = data.scored.length
+        ? data.scored.slice(0, 12).map((item, index) => `${index + 1}. ${item.title}\n   分數：${item.score}%｜索引：${item.indexName}｜年份：${item.year || '未知'}\n   URL：${item.url || '無'}`).join('\n')
+        : '沒有找到公開候選來源。';
       const matches = data.matches.length
-        ? data.matches.map((item, index) => `${index + 1}. 第 ${item.index + 1} 段｜${item.source}｜${item.score}%\n${trimSnippet(item.paragraph, 180)}`).join('\n\n')
-        : '沒有明顯命中段落。';
-      const repeats = data.internal.repeats.length
-        ? data.internal.repeats.map(item => `- ${item.phrase}：${item.count} 次`).join('\n')
-        : '沒有高頻內部重複片語。';
-      const ai = data.ai.factors.map(item => `- ${item.name}：${Math.round(item.score)}%｜${item.note}`).join('\n');
+        ? data.matches.map((item, index) => `${index + 1}. ${item.indexName}｜${item.score}%｜${item.source}\n${trimSnippet(item.sentence, 220)}`).join('\n\n')
+        : '沒有明顯疑似段落。';
+      const ai = data.ai.factors.map(item => `- ${item.name}: ${Math.round(item.score)}%｜${item.note}`).join('\n');
 
-      return `論文原創性與 AI 檢測初篩報告
+      return `免費公開學術索引查重與 AI 初篩報告
 產生時間：${new Date().toLocaleString('zh-Hant')}
 
-一、總覽
+一、搜尋設定
+- 查詢詞：${data.query}
+- 偵測 DOI：${data.paper.doi || '無'}
+- 偵測題名：${data.paper.title || '無'}
 - 主文 token：${data.paper.tokens.length}
-- 句子數：${data.paper.sentences.length}
-- 比對來源數：${data.sourceTotal}
-- 總相似度：${data.similarity}%
-- 原始來源覆蓋率：${data.rawCoverage}%
-- 最高單一來源：${data.topSource}%
+
+二、索引狀態
+${statuses}
+
+三、總覽
+- 公開索引相似度：${data.indexSimilarity}%
+- 最高疑似來源：${data.topScore}%
 - AI 寫作可能性：${data.ai.total}%
 - 整體風險：${data.risk}
+- 公開候選來源：${data.scored.length}
 
-二、相似來源
+四、公開來源排名
 ${sources}
 
-三、命中段落
+五、疑似相似段落
 ${matches}
-
-四、內部重複
-${repeats}
-
-五、引用與引文訊號
-- 偵測引用數：${data.citations.citations}
-- 引用抵扣：${Math.round(data.citations.credit)}%
-- 長引文風險：${Math.round(data.citations.unquotedRisk)}%
 
 六、AI 寫作分項
 ${ai}
 
 七、判讀提醒
-本工具約等於正式系統的本機初篩介面與可解釋報告，不連接 Turnitin、iThenticate、期刊全文庫、學生作業庫或專有 AI 偵測模型。若要接近正式查重效果，必須把歷年論文、教材、網頁文字、同儕作業與已知來源加入比對資料庫。`;
+本報告使用 Crossref、Semantic Scholar、arXiv 等公開索引的題名、摘要與 metadata，不連接 Turnitin、iThenticate、學生作業庫、付費期刊全文庫或專有 AI 偵測模型。無 API key 模式可能遇到公開服務限流；若來源沒有公開摘要或全文，分數會偏保守；若論文高度改寫，也需要人工審閱。`;
     }
 
-    function renderSourceList() {
-      if (!state.sources.length) {
-        els.sourceList.innerHTML = '<div class="empty">尚未加入比對來源。若沒有來源庫，查重只能做內部重複與引用結構初篩。</div>';
-        return;
-      }
-      els.sourceList.innerHTML = state.sources.map((source, index) => `
-        <div class="source-item">
-          <strong>${index + 1}. ${escapeHtml(source.name)}</strong>
-          <span>${tokenize(source.text).length.toLocaleString('zh-Hant')} token</span>
-        </div>
-      `).join('');
-    }
-
-    function updateSidebar(tokens = tokenize(normalizeText(els.paperText.value)), sourceTotal = state.sources.length + parsePastedSources(els.sourceText.value).length, matches = 0, risk = els.riskLabel.textContent || '未分析') {
-      els.wordCount.textContent = tokens.length.toLocaleString('zh-Hant');
-      els.sourceCount.textContent = String(sourceTotal);
-      els.matchedCount.textContent = String(matches);
-      els.riskLabel.textContent = risk;
+    function resetOutput(message) {
+      els.sourceResults.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
+      els.matchResults.innerHTML = '<div class="empty">等待公開來源結果...</div>';
+      els.aiResults.innerHTML = '<div class="empty">等待文字特徵分析...</div>';
+      els.report.textContent = '';
+      els.summaryChips.innerHTML = '';
+      els.statusChips.innerHTML = '';
+      els.downloadBtn.disabled = true;
     }
 
     function clearAll() {
-      state.sources = [];
       state.latestReport = '';
       els.paperText.value = '';
-      els.sourceText.value = '';
-      els.paperFile.value = '';
-      els.sourceFiles.value = '';
-      els.downloadBtn.disabled = true;
-      renderSourceList();
+      els.manualQuery.value = '';
+      els.fileInput.value = '';
+      els.dropZone.querySelector('span').innerHTML = '<strong>選擇或拖曳論文</strong>TXT、PDF、DOCX';
       updateSidebar([], 0, 0, '未分析');
       renderScores(0, 0, 0, '未分析');
       els.similarityScore.textContent = '--%';
       els.topSourceScore.textContent = '--%';
       els.aiScore.textContent = '--%';
-      els.summaryChips.innerHTML = '';
-      els.sourceResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
-      els.matchResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
-      els.aiResults.innerHTML = '<div class="empty">尚未產生報告。</div>';
-      els.report.textContent = '';
-      els.paperDrop.querySelector('span').innerHTML = '<strong>主論文</strong>選擇或拖曳 1 篇要檢測的論文';
-      els.sourceDrop.querySelector('span').innerHTML = '<strong>比對資料庫</strong>一次選擇多篇來源、同學論文或教材';
+      resetOutput('尚未搜尋公開索引。');
     }
 
     function showMessage(message) {
       els.sourceResults.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
+    }
+
+    function updateSidebar(tokens = tokenize(normalizeText(els.paperText.value)), candidates = Number(els.candidateCount?.textContent) || 0, okIndexes = 0, risk = els.riskLabel.textContent || '未分析') {
+      els.wordCount.textContent = tokens.length.toLocaleString('zh-Hant');
+      els.candidateCount.textContent = String(candidates);
+      els.indexCount.textContent = `${okIndexes}/3`;
+      els.riskLabel.textContent = risk;
     }
 
     function downloadReport() {
@@ -1100,9 +1008,14 @@ ${ai}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `originality-ai-report-${Date.now()}.txt`;
+      a.download = `open-index-originality-report-${Date.now()}.txt`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    function setLoading(isLoading) {
+      els.analyzeBtn.disabled = isLoading;
+      els.analyzeBtn.textContent = isLoading ? '搜尋中...' : '搜尋公開索引並產生報告';
     }
 
     function setBar(bar, value) {
@@ -1123,11 +1036,36 @@ ${ai}
     }
 
     function normalizeText(text) {
-      return String(text || '')
-        .replace(/\u00a0/g, ' ')
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+      return String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function plain(text) {
+      return normalizeText(text || '').replace(/\s+/g, ' ');
+    }
+
+    function stripTags(html) {
+      return plain(String(html || '').replace(/<[^>]+>/g, ' '));
+    }
+
+    function splitSentences(text) {
+      return normalizeText(text).split(/[。！？!?；;\n]+/).map(item => item.trim()).filter(item => item.length >= 10);
+    }
+
+    function tokenize(text) {
+      const lowered = stripTags(text).toLowerCase();
+      const cjk = lowered.match(/[\u4e00-\u9fff]/g) || [];
+      const words = lowered.match(/[a-z0-9]+(?:[-'][a-z0-9]+)?/g) || [];
+      const cjkChunks = [];
+      for (let i = 0; i < cjk.length - 1; i += 1) cjkChunks.push(cjk.slice(i, i + 2).join(''));
+      return [...words, ...cjkChunks].filter(token => token.length > 1 && !STOPWORDS.has(token));
+    }
+
+    const STOPWORDS = new Set(['the', 'and', 'for', 'that', 'with', 'this', 'from', 'are', 'was', 'were', '研究', '學生', '本文', '論文', '探討']);
+
+    function keywords(tokens) {
+      const counts = new Map();
+      tokens.forEach(token => counts.set(token, (counts.get(token) || 0) + 1));
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([token]) => token);
     }
 
     function trimSnippet(text, max = 260) {
@@ -1156,8 +1094,6 @@ ${ai}
         "'": '&#39;'
       }[char]));
     }
-
-    updateSidebar();
   </script>
 </body>
 </html>
